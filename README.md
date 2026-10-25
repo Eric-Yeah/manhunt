@@ -39,7 +39,7 @@ Oder einfach den Ordner `web/` auf GitHub Pages veröffentlichen (Schritt 2.7) u
 
 ## 2. Einrichtung Schritt für Schritt
 
-Du brauchst: einen Supabase-Account, deinen GitHub-Account (privates Repo + Pages, hast du mit GitHub Pro) und ca. 30 Minuten.
+Du brauchst: einen Supabase-Account, deinen GitHub-Account (öffentliches Repo + Pages, kostenlos) und ca. 30 Minuten.
 
 ### 2.1 Supabase-Projekt anlegen
 
@@ -114,11 +114,11 @@ Kontrolle im SQL-Editor: `select jobname, schedule, active from cron.job;`
    PUBLIC_URL: 'https://eric-yeah.github.io/manhunt/',
    ```
    **Niemals** den Secret Key oder `service_role`-Key ins Frontend schreiben. Der Publishable Key darf öffentlich sein, die Datenbank ist durch RLS geschützt.
-3. Neues **privates** Repository `manhunt` auf GitHub anlegen und den **ganzen Projektordner** hochladen (inkl. `.github/workflows/pages.yml`; `node_modules` nicht).
+3. Neues **öffentliches** Repository `manhunt` auf GitHub anlegen (Pages für private Repos geht nur mit GitHub Pro) und den **ganzen Projektordner** hochladen (inkl. `.github/workflows/pages.yml`; `node_modules` nicht).
 4. Repo → **Settings → Pages → Build and deployment → Source: „GitHub Actions“**. Bei jedem Push veröffentlicht der Workflow automatisch den Ordner `web/`.
 5. Nach ein bis zwei Minuten läuft die App unter `https://eric-yeah.github.io/manhunt/`.
 
-> GitHub Pages ist auch bei privaten Repos öffentlich erreichbar. Das ist okay: Ohne Spielcode kommt niemand in ein Spiel, und alle Daten sind per RLS geschützt.
+> Code und App sind öffentlich. Das ist okay: Im Repo stehen keine Secrets (nur der Publishable Key), ohne Spielcode kommt niemand in ein Spiel, und alle Daten sind per RLS geschützt.
 
 ### 2.8 Auf dem iPhone installieren
 

@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fährte – Design A: Ruhig & minimal</title>
+<style>
+:root{--page:#06090e;--bg:#0d141d;--card:#162130;--card2:#1d2b3d;--line:#26364a;--tx:#e8eef6;--mut:#8fa1b6;--ac:#4c9aff;--ac-soft:rgba(76,154,255,.16);--on-ac:#fff;--hid:#ff9a62;--hid-soft:rgba(255,154,98,.16);--ok:#34d399;--ok-soft:rgba(52,211,153,.15);--warn:#fbbf24;--bad:#f87171;--bad-soft:rgba(248,113,113,.16);--glow:transparent;--grid:transparent;
+--m-bg:#14202e;--m-park:#183246;--m-water:#0f2c4a;--m-road:#243a52;--m-road2:#1d3045;--m-b:#1b2b3d;--outside:rgba(6,10,16,.62);--shadow:0 12px 30px rgba(0,0,0,.35);--mono:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;--r:20px;--rb:18px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--page);color:var(--tx);line-height:1.4;padding:32px 16px 64px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.page-h{max-width:1100px;margin:0 auto 28px;text-align:center}
+.page-h h1{font-size:30px;letter-spacing:-.01em}
+.page-h p{color:var(--mut);max-width:720px;margin:8px auto 0;font-size:15px}
+.dtag{display:inline-block;margin-bottom:10px;padding:4px 12px;border-radius:99px;background:var(--ac-soft);color:var(--ac);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sect{max-width:1500px;margin:40px auto 14px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:12px}
+.sect:after{content:"";flex:1;height:1px;background:var(--line)}
+.board{display:flex;flex-wrap:wrap;gap:36px 32px;justify-content:center;align-items:flex-start;max-width:1500px;margin:0 auto}
+.fig{width:410px;max-width:100%}
+.fig figcaption{display:flex;flex-direction:column;gap:2px;margin:0 6px 12px}
+.fig figcaption b{font-size:16px}
+.fig figcaption span{font-size:13px;color:var(--mut)}
+.note{margin:12px 8px 0;font-size:13px;color:var(--mut)}
+/* Handy */
+.phone{--bg:#0d141d;width:410px;max-width:100%;border:10px solid #000;border-radius:54px;background:var(--bg);color:var(--tx);position:relative;overflow:hidden;box-shadow:0 0 0 2px #2a3340,var(--shadow);min-height:864px;display:flow-root}
+.phone.fixed{height:864px;min-height:0}
+.di{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:112px;height:32px;border-radius:20px;background:#000;z-index:20}
+.hi{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:var(--tx);opacity:.7;z-index:20}
+.sb{height:50px;padding:16px 28px 0;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px;position:relative;z-index:15}
+.sbr{display:flex;gap:6px;align-items:center}
+.scr{padding:8px 16px 40px;display:flex;flex-direction:column;gap:14px;position:relative}
+.scr.nopad{padding:0;gap:0}
+.light{--bg:#eef2f7;--card:#fff;--card2:#e6edf5;--line:#d3dde9;--tx:#0f1a2a;--mut:#5a6d84;--ac:#2563eb;--ac-soft:rgba(37,99,235,.11);--hid:#d9580f;--hid-soft:rgba(217,88,15,.12);--ok:#059669;--ok-soft:rgba(5,150,105,.12);--warn:#b45309;--bad:#dc2626;--bad-soft:rgba(220,38,38,.1);
+--m-bg:#e6ecf3;--m-park:#d3e7de;--m-water:#bcd8f0;--m-road:#fff;--m-road2:#f4f7fa;--m-b:#d8e1ea;--outside:rgba(180,194,210,.62);--shadow:0 12px 30px rgba(15,26,42,.25);background:var(--bg)}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.sub{font-size:13px;color:var(--mut)}
+small{font-size:12px;color:var(--mut);display:block}
+h1{font-size:34px;letter-spacing:-.02em;line-height:1.1}
+h2{font-size:20px}h3{font-size:17px}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.card{background:var(--card);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card.tight{gap:6px}
+.card.list{padding:6px 14px;gap:0}
+.card.nopadc{padding:0;overflow:hidden;position:relative}
+.cl{display:flex;justify-content:space-between;align-items:baseline}
+.val{font-weight:700;color:var(--ac);font-size:15px}.val.big{font-size:22px}
+/* Header */
+.hdr{display:flex;align-items:center;gap:12px;padding:4px 0 2px}
+.ib{width:40px;height:40px;border-radius:14px;background:var(--card);display:grid;place-items:center;color:var(--tx);flex:none}
+.ib.sm{width:34px;height:34px;border-radius:11px;background:var(--card2)}
+.ht{flex:1}.ht h2{line-height:1.15}
+.step{font-size:12.5px;color:var(--mut)}
+.hdr.floaty{position:absolute;top:50px;left:16px;right:16px;z-index:12;background:var(--card);border-radius:18px;padding:8px 12px;box-shadow:var(--shadow)}
+.hdr.floaty .ib{background:var(--card2)}
+/* Buttons */
+.btn{height:54px;border-radius:var(--rb);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;transition:none}
+.btn.pri{background:var(--ac);color:var(--on-ac)}
+.btn.pri.dis{opacity:.45}
+.btn.sec{background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+.btn.sm{height:42px;font-size:13px;border-radius:14px;gap:6px;padding:0 6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ico-b{width:44px;height:44px;border-radius:14px;background:var(--ac-soft);color:var(--ac);display:grid;place-items:center;flex:none}.ico-b.sm{width:36px;height:36px;border-radius:12px}
+/* Chips / Auswahl */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:10px 14px;border-radius:14px;background:var(--card2);color:var(--mut);font-weight:600;font-size:14px;border:1px solid transparent;display:inline-flex;gap:6px;align-items:center}
+.chip.on{background:var(--ac);color:var(--on-ac)}
+.rules .chip{font-size:12.5px;padding:7px 11px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+.opt{display:flex;gap:12px;align-items:center;padding:12px;border-radius:16px;background:var(--card2);border:1px solid transparent}
+.opt.on{border-color:var(--ac);background:var(--ac-soft)}
+.opt b{font-size:15px;display:block}
+.oi{color:var(--ac);width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--card)}
+.rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none}.rad.on{border:6px solid var(--ac);background:var(--on-ac)}
+.subchips{padding:0 0 0 50px;margin-top:-4px}
+.subchips .chip{padding:8px 12px}
+.sw{width:50px;height:30px;border-radius:15px;background:var(--card2);position:relative;flex:none;border:1px solid var(--line)}
+.sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--mut)}
+.sw.on{background:var(--ac);border-color:var(--ac)}.sw.on i{left:23px;background:#fff}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--card2);border-radius:14px;padding:4px;gap:4px}
+.seg span{text-align:center;padding:9px 4px;border-radius:11px;font-size:13px;font-weight:600;color:var(--mut)}
+.seg .on{background:var(--ac);color:var(--on-ac)}
+.sl{height:8px;border-radius:4px;background:var(--card2);position:relative;margin:10px 8px 8px 0}
+.sl i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--ac)}
+.sl b{position:absolute;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:#fff;border:4px solid var(--ac);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut)}
+/* Kacheln */
+.tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--card2);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.card .tile{background:var(--card2)}
+.scr > .tiles3 .tile,.sheet .tile{background:var(--card)}
+.tile .lbl{font-size:10.5px;letter-spacing:.07em}
+.tile .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile small{font-size:11px}
+.pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--card2);color:var(--mut);white-space:nowrap}
+.pill.ac{background:var(--ac-soft);color:var(--ac)}.pill.hid{background:var(--hid-soft);color:var(--hid)}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.glass{background:var(--card);color:var(--tx);box-shadow:var(--shadow);font-weight:600;padding:7px 12px;align-self:flex-start}
+.hint{font-size:12.5px;color:var(--mut);text-align:center;padding:0 8px}
+/* Lobby */
+.toprow{display:flex;justify-content:space-between;align-items:center}
+.tgl{display:flex;background:var(--card);border-radius:99px;padding:3px;border:1px solid var(--line)}
+.tgl span{width:38px;height:30px;border-radius:99px;display:grid;place-items:center;color:var(--mut)}.tgl .on{background:var(--ac);color:var(--on-ac)}
+.brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:8px 0 6px}
+.logowrap{position:relative;width:110px;height:110px;display:grid;place-items:center;color:var(--ac)}
+.tag{color:var(--mut);font-size:15px}
+.logo{color:var(--ac);overflow:visible}.lg-a{stroke:var(--ac)}.lg-d{fill:var(--hid)}.lg-d2{stroke:var(--hid)}
+.code{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.cb{height:54px;border-radius:14px;background:var(--card2);border:1px solid var(--line);display:grid;place-items:center;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.cb.cur{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-soft)}
+/* Warteraum */
+.codecard{flex-direction:row;align-items:center;gap:14px}
+.bigcode{font-size:34px;font-weight:800;letter-spacing:.08em;font-family:var(--mono);margin:2px 0 10px}
+.qr{border-radius:12px;padding:6px;background:#fff;flex:none}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.role{background:var(--card);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;border:1.5px solid transparent}
+.role.on{border-color:var(--ac);background:var(--ac-soft)}
+.role small{font-size:11.5px}
+.ri{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--ac-soft);color:var(--ac);margin-bottom:4px}.ri.hid{background:var(--hid-soft);color:var(--hid)}.ri.mut{background:var(--card2);color:var(--mut)}
+.pl{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}.pl:last-child{border:0}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none;background:var(--card2)}
+.av.sucher{background:var(--ac-soft);color:var(--ac)}.av.gejagt{background:var(--hid-soft);color:var(--hid)}.av.zufall{background:var(--card2);color:var(--mut)}
+.crown{color:var(--warn);margin-left:6px;vertical-align:-2px;display:inline-block}
+.rdy{width:10px;height:10px;border-radius:50%;background:var(--card2);border:1px solid var(--line)}.rdy.ok{background:var(--ok);border-color:var(--ok)}
+/* Karte */
+.mapbox{height:420px;margin-top:-50px;position:relative}.mapbox svg{display:block}
+.panel{background:var(--bg);border-radius:26px 26px 0 0;margin-top:-26px;position:relative;padding:18px 16px 40px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 24px rgba(0,0,0,.25)}
+.m-bg{fill:var(--m-bg)}.m-park{fill:var(--m-park)}.m-water{fill:none;stroke:var(--m-water);stroke-width:22;stroke-linecap:round}
+.m-road{fill:none;stroke:var(--m-road);stroke-width:9;stroke-linecap:round}.m-road2{fill:none;stroke:var(--m-road2);stroke-width:4.5;stroke-linecap:round}
+.m-b rect{fill:var(--m-b)}
+.fx{display:none}
+.outside{fill:var(--outside)}
+.bound{fill:none;stroke:var(--ac);stroke-width:3;stroke-dasharray:10 7}.bound.bad{stroke:var(--bad)}
+.boundfill{fill:var(--ac-soft);opacity:.45}.boundfill.bad{fill:var(--bad-soft)}
+.handle{fill:#fff;stroke:var(--ac);stroke-width:4}.rad-line{stroke:var(--ac);stroke-width:2.5}
+.mid{fill:var(--ac);stroke:#fff;stroke-width:3}
+.vtx{fill:var(--ac);stroke:#fff;stroke-width:2.5}
+.chipbox{fill:var(--card);stroke:var(--line)}
+.svgt{font:700 12px -apple-system,"SF Pro Text",Helvetica,Arial,sans-serif;fill:var(--tx)}.svgt.mut{fill:var(--mut)}.svgt.bad{fill:var(--bad)}.svgt.big{font-size:20px;fill:var(--ac)}.svgt.on-ac{fill:#fff}
+.ping{fill:var(--ac-soft);stroke:var(--ac);stroke-width:3}.ping2{fill:none;stroke:var(--ac);stroke-width:1.5;opacity:.5;transform-origin:246px 228px;animation:pg 2.4s ease-out infinite}
+.oldping{fill:none;stroke:var(--ac);stroke-width:2;stroke-dasharray:4 5;opacity:.5}
+.me-halo{fill:var(--ac-soft)}.me-dot{fill:var(--ac);stroke:#fff;stroke-width:3.5}
+.hid-halo{fill:var(--hid-soft)}.hid-dot{fill:var(--hid);stroke:#fff;stroke-width:3.5}
+.mate circle{fill:var(--ac);opacity:.75;stroke:#fff;stroke-width:2.5}
+.acc{fill:var(--hid-soft);stroke:var(--hid);stroke-width:1.5;stroke-dasharray:3 4}
+.trail{fill:none;stroke:var(--hid);stroke-width:3;stroke-dasharray:2 7;stroke-linecap:round;opacity:.85}
+.found-x{fill:var(--bad);stroke:#fff;stroke-width:2}
+@keyframes pg{0%{transform:scale(.7);opacity:.7}100%{transform:scale(1.35);opacity:0}}
+.mapscr{padding:0;position:absolute;inset:0;display:block}
+.fullmap{position:absolute;top:0;left:0;width:100%;height:600px}
+.hudtop{position:absolute;top:54px;left:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:6}
+.pingcd{flex-direction:row;align-items:center;gap:12px;padding:10px 14px 10px 10px;box-shadow:var(--shadow)}
+.cd{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);display:block;line-height:1.1}.cd.bad{color:var(--bad);font-size:30px}
+.warncard{flex-direction:row;align-items:center;gap:10px;background:var(--bad-soft);background-color:var(--card);border:1.5px solid var(--bad);padding:12px 14px;box-shadow:var(--shadow)}
+.warncard b:first-of-type{font-size:15px;display:block}
+.warncard .wi{color:var(--bad)}
+.wbar{height:6px;border-radius:3px;background:var(--card);overflow:hidden;margin-top:-2px}.wbar i{display:block;height:100%;background:var(--bad)}
+.fabs.left{right:auto;left:16px}
+.fabs{position:absolute;right:16px;top:230px;display:flex;flex-direction:column;gap:10px;z-index:6}
+.fab{width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center;box-shadow:var(--shadow)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 16px 34px;display:flex;flex-direction:column;gap:12px;z-index:7;box-shadow:0 -12px 30px rgba(0,0,0,.3)}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);align-self:center}
+.hist{display:flex;flex-direction:column;gap:6px}
+.hrow{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:14px;padding:9px 12px;font-size:14px}
+.hrow small{margin-left:auto;margin-right:4px}.hrow.now{outline:1.5px solid var(--ac)}
+.hn{font-weight:800;color:var(--ac);width:28px;font-variant-numeric:tabular-nums}
+.btn.found{background:var(--bad-soft);border:1.5px solid var(--bad);color:var(--bad);position:relative;overflow:hidden;height:60px}
+.btn.found .hold{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--bad);opacity:.25}
+.btn.found .bt{position:relative;display:flex;gap:8px;align-items:center}
+.sub.d{display:block}
+.okc .v{color:var(--ok)}
+/* Panel Sperrzone */
+.zone{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:16px;padding:10px 12px;border:1px solid var(--bad)}
+.zsw{width:26px;height:26px;border-radius:8px;background:repeating-linear-gradient(45deg,var(--bad-soft) 0 4px,var(--bad) 4px 6px);flex:none}
+/* Ergebnis */
+.trophy{align-self:center;width:112px;height:112px;border-radius:50%;background:var(--ac-soft);display:grid;place-items:center;position:relative;color:var(--ac);margin-top:6px}
+.trophy .tr{width:84px;height:84px;border-radius:50%;background:var(--card);display:grid;place-items:center;position:relative}
+.center{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+.win{color:var(--hid)}
+.mapcap{display:flex;gap:10px;align-items:baseline;position:absolute;left:10px;bottom:10px;background:var(--card);border-radius:12px;padding:6px 10px}
+.sweep{display:none}
+.names{max-width:1100px;margin:44px auto 0}
+.names h2{font-size:22px;margin-bottom:16px;text-align:center}
+.ncards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.ncard{background:var(--card);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:1px solid var(--line)}
+.ncard.pick{border-color:var(--ac)}
+.ncard p{font-size:14px;color:var(--mut)}
+.nl{width:84px;height:84px;border-radius:22px;background:var(--bg);display:grid;place-items:center;color:var(--ac)}
+.legend{max-width:1100px;margin:36px auto 0;color:var(--mut);font-size:14px;display:grid;gap:8px}
+.legend b{color:var(--tx)}
+@media (prefers-reduced-motion:reduce){.ping2,.sweep{animation:none!important}}
+</style>
+</head>
+<body class="a">
+<header class="page-h"><span class="dtag">Richtung A · Hauptvorschlag</span><h1>Fährte – ruhig &amp; minimal</h1>
+<p>Dunkler Blaugrau-Stil wie in der Daily App: runde Karten, blaue Akzente, Kennzahlen-Kacheln. Ein Akzent (Blau) für Sucher, ein warmes Orange nur für Gejagte, Rot nur für Gefahr. Alle Karten sind stilisierte SVG-Platzhalter ohne echte Kartendaten.</p></header><h2 class="sect">Kompletter Ablauf (dunkel)</h2><div class="board"><figure class="fig"><figcaption><b>1 · Start / Lobby</b><span>Spiel erstellen oder Code eingeben</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="toprow"><span class="lbl">Version 0.1 · Beta</span><div class="tgl" role="group" aria-label="Darstellung"><span class=""><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="on"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span></div></div>
+<div class="brand"><div class="logowrap"><div class="fx sweep sm"></div><svg class="logo " width="92" height="92" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h1>Fährte</h1><p class="tag">Jagd im echten Gelände.<br>Verstecken, suchen, entkommen.</p></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></div><div class="grow"><h3>Spiel erstellen</h3><p class="sub">Du wirst Host und legst Regeln und Spielgebiet fest.</p></div></div><button class="btn pri">Neues Spiel erstellen</button></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></div><div class="grow"><h3>Spiel beitreten</h3><p class="sub">6-stelligen Code eingeben oder QR scannen.</p></div></div>
+<div class="code"><span class="cb">K</span><span class="cb">7</span><span class="cb">M</span><span class="cb cur"></span><span class="cb"></span><span class="cb"></span></div>
+<div class="two"><button class="btn sec"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.5M14 20h3M20 18v3"/></svg> QR scannen</button><button class="btn pri dis">Beitreten</button></div></div>
+<div class="card hud tight"><span class="lbl">Letzte Runde</span><div class="row between"><b>Stadtpark-Jagd</b><span class="pill ok">Gejagte gewonnen</span></div><p class="sub">60 min · 6 Spieler · gestern, 17:40</p></div>
+</div><div class="hi"></div></div><p class="note">Zwei klare Karten: Host oder Mitspieler. Der Hell/Dunkel-Umschalter sitzt oben rechts, QR-Scan neben „Beitreten“.</p></figure><figure class="fig"><figcaption><b>2 · Host-Einstellungen</b><span>Intervall, Genauigkeit, Vorsprung, Dauer</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="hdr"><button class="ib" aria-label="Zurück"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="ht"><h2>Spielregeln</h2><span class="step">Schritt 1 von 3 · Host</span></div><div class="hr"></div></div>
+<div class="card"><div class="cl"><span class="lbl">Ping-Intervall</span><span class="val">alle 5 min</span></div><p class="sub">Wie oft die Sucher einen Standort-Update bekommen.</p><div class="chips"><span class="chip">1 min</span><span class="chip">2 min</span><span class="chip on">5 min</span><span class="chip">10 min</span><span class="chip">15 min</span></div></div>
+<div class="card"><div class="cl"><span class="lbl">Ping-Genauigkeit</span></div>
+<div class="opt"><span class="oi"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span><div class="grow"><b>Exakter Punkt</b><small>Sehr schwer für Gejagte</small></div><span class="rad"></span></div>
+<div class="opt on"><span class="oi"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></span><div class="grow"><b>Ungefährer Kreis</b><small>Echter Standort liegt irgendwo darin</small></div><span class="rad on"></span></div>
+<div class="subchips"><div class="chips"><span class="chip">100 m</span><span class="chip on">250 m</span><span class="chip">500 m</span></div></div>
+<div class="opt"><span class="oi"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V5M6 11l6-6 6 6"/></svg></span><div class="grow"><b>Richtung &amp; Entfernung</b><small>z. B. „Nordost, ca. 400 m“</small></div><span class="rad"></span></div></div>
+<div class="card"><div class="cl"><span class="lbl">Vorsprung der Gejagten</span><span class="val">10 min</span></div><div class="chips"><span class="chip">5 min</span><span class="chip on">10 min</span><span class="chip">15 min</span></div></div>
+<div class="card"><div class="cl"><span class="lbl">Spieldauer</span><span class="val big">60 min</span></div><div class="sl"><i style="width:32%"></i><b style="left:32%"></b></div><div class="scale"><span>15</span><span>60</span><span>120</span><span>180 min</span></div></div>
+<div class="card"><div class="row"><div class="ico-b sm"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l6 6M4 9V4h5M20 20l-6-6M20 15v5h-5"/></svg></div><div class="grow"><b>Schrumpfende Zone</b><p class="sub">Spielgebiet wird alle 15 min um 10 % kleiner.</p></div><span class="sw on"><i></i></span></div></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Ping</span><span class="v">5 min</span></div><div class="tile "><span class="lbl">Kreis</span><span class="v">250 m</span></div><div class="tile "><span class="lbl">Dauer</span><span class="v">60 min</span></div></div>
+<button class="btn pri">Weiter: Spielgebiet <svg style='transform:rotate(180deg)' class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+</div><div class="hi"></div></div><p class="note">Chips für feste Werte, Auswahlkarten für die Genauigkeit (Kreis-Größe klappt direkt darunter auf), Regler für die Dauer. Scrollt.</p></figure><figure class="fig"><figcaption><b>3a · Grenze: Kreis-Modus</b><span>Radius-Regler und gespeicherte Gebiete</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr nopad">
+<div class="hdr floaty"><button class="ib" aria-label="Zurück"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="ht"><h2>Spielgebiet</h2><span class="step">Schritt 2 von 3 · Kreis-Modus</span></div><div class="hr"></div></div>
+<div class="mapbox"><svg viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice" width="390" height="420" role="img" aria-label="Stilisierte Kartenfläche"><defs>
+<pattern id="gu1" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu1" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="420"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="420" fill="url(#gu1)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V420H0Z M70 262a125 125 0 1 0 250 0a125 125 0 1 0 -250 0Z"/><circle class="bound" cx="195" cy="262" r="125"/><circle class="boundfill" cx="195" cy="262" r="125"/>
+<circle class="fx rr" cx="195" cy="262" r="83"/><circle class="fx rr" cx="195" cy="262" r="42"/>
+<line class="rad-line" x1="195" y1="262" x2="283" y2="174"/><circle class="handle" cx="283" cy="174" r="11"/>
+<rect class="chipbox" x="228" y="190" width="62" height="24" rx="12"/><text x="259" y="206" text-anchor="middle" class="svgt">800 m</text>
+<circle class="mid" cx="195" cy="262" r="6"/></svg></div>
+<div class="panel"><div class="seg"><span class="on">Kreis</span><span>Form zeichnen</span><span>Gespeichert</span></div>
+<div class="cl"><span class="lbl">Radius</span><span class="val big">800 m</span></div><div class="sl"><i style="width:26%"></i><b style="left:26%"></b></div><div class="scale"><span>200 m</span><span>1 km</span><span>3 km</span></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Fläche</span><span class="v">2,0 km²</span></div><div class="tile "><span class="lbl">Mittelpunkt</span><span class="v">Mein Ort</span></div><div class="tile "><span class="lbl">Sperrzonen</span><span class="v">0</span></div></div>
+<span class="lbl">Gespeicherte Gebiete</span>
+<div class="chips"><span class="chip"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg> Stadtpark · 600 m</span><span class="chip"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8V4M8 20v-6h8v6"/></svg> Uni-Campus</span></div>
+<button class="btn pri">Gebiet übernehmen</button></div></div><div class="hi"></div></div><p class="note">Zieh-Griff am Kreisrand oder Regler. Außerhalb wird die Karte abgedunkelt.</p></figure><figure class="fig"><figcaption><b>3b · Grenze: Form zeichnen</b><span>Punkte setzen, Sperrzone (rot schraffiert)</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr nopad">
+<div class="hdr floaty"><button class="ib" aria-label="Zurück"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="ht"><h2>Spielgebiet</h2><span class="step">Schritt 2 von 3 · Form-Modus</span></div><div class="hr"></div></div>
+<div class="mapbox"><svg viewBox="0 0 390 420" preserveAspectRatio="xMidYMid slice" width="390" height="420" role="img" aria-label="Stilisierte Kartenfläche"><defs>
+<pattern id="gu2" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu2" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="420"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="420" fill="url(#gu2)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V420H0Z M105 180 L270 152 L335 245 L290 338 L160 362 L72 285Z"/><polygon class="boundfill" points="105,180 270,152 335,245 290,338 160,362 72,285"/><polygon class="bound" points="105,180 270,152 335,245 290,338 160,362 72,285" stroke-linejoin="round"/><polygon fill="url(#hu2)" class="nz" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4" points="212,236 282,226 300,284 232,304"/><text x="256" y="272" text-anchor="middle" class="svgt bad">Gleise</text><circle class="vtx" cx="105" cy="180" r="11"/><text x="105" y="184" text-anchor="middle" class="svgt on-ac">1</text><circle class="vtx" cx="270" cy="152" r="11"/><text x="270" y="156" text-anchor="middle" class="svgt on-ac">2</text><circle class="vtx" cx="335" cy="245" r="11"/><text x="335" y="249" text-anchor="middle" class="svgt on-ac">3</text><circle class="vtx" cx="290" cy="338" r="11"/><text x="290" y="342" text-anchor="middle" class="svgt on-ac">4</text><circle class="vtx" cx="160" cy="362" r="11"/><text x="160" y="366" text-anchor="middle" class="svgt on-ac">5</text><circle class="vtx" cx="72" cy="285" r="11"/><text x="72" y="289" text-anchor="middle" class="svgt on-ac">6</text></svg></div>
+<div class="panel"><div class="seg"><span>Kreis</span><span class="on">Form zeichnen</span><span>Gespeichert</span></div>
+<div class="tools"><button class="btn sec sm"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 005 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg> Punkt setzen</button><button class="btn sec sm"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg> Zurück</button><button class="btn sec sm"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg> Schließen</button></div>
+<div class="row between"><span class="lbl">Sperrzonen</span><span class="pill bad">1 aktiv</span></div>
+<div class="zone"><span class="zsw"></span><div class="grow"><b>Sperrzone 1 · Bahngleise</b><small>Betreten verboten · Warnung mit Countdown</small></div><span class="ib sm"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div>
+<button class="btn sec"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Sperrzone zeichnen</button>
+<div class="tiles3"><div class="tile "><span class="lbl">Punkte</span><span class="v">6</span></div><div class="tile "><span class="lbl">Fläche</span><span class="v">1,6 km²</span></div><div class="tile "><span class="lbl">Warnzeit</span><span class="v">30 s</span></div></div>
+<button class="btn pri">Gebiet übernehmen</button></div></div><div class="hi"></div></div><p class="note">Nummerierte Eckpunkte, „Schließen“ verbindet zum Polygon. Sperrzonen sind rot schraffiert und separat listbar.</p></figure><figure class="fig"><figcaption><b>4 · Warteraum</b><span>Code, QR, Rollenwahl, Spielerliste</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="hdr"><button class="ib" aria-label="Zurück"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="ht"><h2>Warteraum</h2><span class="step">6 Spieler verbunden</span></div><div class="hr"></div></div>
+<div class="card hud codecard"><div class="grow"><span class="lbl">Beitrittscode</span><div class="bigcode">K7M·4QX</div><div class="two"><button class="btn sec sm"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/></svg> Teilen</button><button class="btn sec sm">Kopieren</button></div></div><svg class="qr" width="98" height="98" viewBox="0 0 21 21" shape-rendering="crispEdges" role="img" aria-label="QR-Code (Platzhalter)"><rect width="21" height="21" fill="#fff"/><path d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM12 0h1v1h-1zM14 0h1v1h-1zM15 0h1v1h-1zM16 0h1v1h-1zM17 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM14 1h1v1h-1zM20 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM11 3h1v1h-1zM14 3h1v1h-1zM16 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM16 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM14 5h1v1h-1zM20 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM9 6h1v1h-1zM11 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM18 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM11 7h1v1h-1zM4 8h1v1h-1zM8 8h1v1h-1zM13 8h1v1h-1zM16 8h1v1h-1zM0 9h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM10 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM17 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM2 10h1v1h-1zM4 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM11 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM20 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1zM12 11h1v1h-1zM14 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM0 12h1v1h-1zM1 12h1v1h-1zM3 12h1v1h-1zM4 12h1v1h-1zM5 12h1v1h-1zM7 12h1v1h-1zM13 12h1v1h-1zM14 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM20 12h1v1h-1zM8 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM15 13h1v1h-1zM20 13h1v1h-1zM0 14h1v1h-1zM1 14h1v1h-1zM2 14h1v1h-1zM3 14h1v1h-1zM4 14h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM0 15h1v1h-1zM6 15h1v1h-1zM8 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM19 15h1v1h-1zM0 16h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM13 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM0 17h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM6 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM0 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM4 18h1v1h-1zM6 18h1v1h-1zM8 18h1v1h-1zM10 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM19 18h1v1h-1zM20 18h1v1h-1zM0 19h1v1h-1zM6 19h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM13 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM0 20h1v1h-1zM1 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM4 20h1v1h-1zM5 20h1v1h-1zM6 20h1v1h-1zM11 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1z" fill="#0b1119"/></svg></div>
+<div class="chips rules"><span class="chip">Ping 5 min</span><span class="chip">Kreis 250 m</span><span class="chip">Vorsprung 10 min</span><span class="chip">60 min</span><span class="chip">Zone 800 m</span></div>
+<span class="lbl">Deine Rolle</span>
+<div class="roles"><div class="role"><span class="ri hid"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><b>Gejagter</b><small>Verstecken</small></div><div class="role on"><span class="ri"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></span><b>Sucher</b><small>Aufspüren</small></div><div class="role"><span class="ri mut"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg></span><b>Zufall</b><small>Würfeln</small></div></div>
+<div class="row between"><span class="lbl">Spieler</span><span class="sub">2 Sucher · 3 Gejagte · 1 offen</span></div>
+<div class="card list"><div class="pl"><span class="av sucher">E</span><div class="grow"><b>Eric<span class="crown"><svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg></span></b><small>bereit</small></div><span class="pill ac">Sucher</span><span class="rdy ok"></span></div><div class="pl"><span class="av gejagt">M</span><div class="grow"><b>Mia</b><small>bereit</small></div><span class="pill hid">Gejagter</span><span class="rdy ok"></span></div><div class="pl"><span class="av gejagt">J</span><div class="grow"><b>Jonas</b><small>bereit</small></div><span class="pill hid">Gejagter</span><span class="rdy ok"></span></div><div class="pl"><span class="av gejagt">L</span><div class="grow"><b>Lena</b><small>wählt Rolle…</small></div><span class="pill hid">Gejagter</span><span class="rdy"></span></div><div class="pl"><span class="av sucher">B</span><div class="grow"><b>Ben</b><small>bereit</small></div><span class="pill ac">Sucher</span><span class="rdy ok"></span></div><div class="pl"><span class="av zufall">T</span><div class="grow"><b>Tom</b><small>bereit</small></div><span class="pill mut">Zufall</span><span class="rdy ok"></span></div></div>
+<button class="btn pri">Spiel starten</button>
+<p class="hint">Nach dem Start haben die Gejagten 10 min Vorsprung. Nur der Host sieht diesen Button.</p>
+</div><div class="hi"></div></div><p class="note">Code groß und teilbar. Rollen als drei Kacheln inkl. „Zufall“. Start nur für den Host.</p></figure><figure class="fig"><figcaption><b>5 · Sucher-Ansicht</b><span>Ping-Kreis, Countdown, Grenze</span></figcaption><div class="phone fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche mit Ping-Kreis und Spielgrenze"><defs>
+<pattern id="gu3" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu3" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu3)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M20 290a175 175 0 1 0 350 0a175 175 0 1 0 -350 0Z"/><circle class="boundfill" cx="195" cy="290" r="175"/><circle class="bound" cx="195" cy="290" r="175"/>
+<circle class="fx rr" cx="195" cy="290" r="117"/><circle class="fx rr" cx="195" cy="290" r="58"/>
+<circle class="oldping" cx="292" cy="372" r="58"/><circle class="oldping" cx="140" cy="205" r="58"/>
+<text x="292" y="376" text-anchor="middle" class="svgt mut">#5</text><text x="140" y="209" text-anchor="middle" class="svgt mut">#6</text>
+<circle class="ping" cx="246" cy="228" r="58"/><circle class="ping2" cx="246" cy="228" r="58"/>
+<text x="246" y="232" text-anchor="middle" class="svgt big">#7</text>
+<rect class="chipbox" x="198" y="292" width="96" height="24" rx="12"/><text x="246" y="308" text-anchor="middle" class="svgt">Ping · ca. 250 m</text>
+<g class="mate"><circle cx="228" cy="392" r="6"/><circle cx="130" cy="448" r="6"/></g><circle class="me-halo" cx="176" cy="420" r="16"/><circle class="me-dot" cx="176" cy="420" r="7"/></svg>
+<div class="fx sweep"></div>
+<div class="hudtop"><div class="card hud pingcd"><svg class="rg" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="74.6" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="var(--tx)">5:00</text></svg><div class="grow"><span class="lbl">Nächster Ping in</span><b class="cd">02:41</b></div><span class="pill ac">Sucher</span></div>
+<span class="pill glass">Letzter Ping vor 2:19 · Kreis ~250 m</span></div>
+<div class="fabs"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile okc"><span class="lbl">Grenze</span><span class="v">innen</span><small>180 m Rand</small></div></div>
+<div class="row between"><span class="lbl">Ping-Verlauf</span><span class="sub">Gejagte: Vorsprung vorbei</span></div>
+<div class="hist"><div class="hrow now"><span class="hn">#7</span><b>vor 2:19</b><small>Kreis ~250 m</small><span class="pill ac">neu</span></div><div class="hrow"><span class="hn">#6</span><b>vor 7:19</b><small>Kreis ~250 m</small></div><div class="hrow"><span class="hn">#5</span><b>vor 12:19</b><small>Kreis ~250 m</small></div></div>
+</div></div><div class="hi"></div></div><p class="note">Oben der Ping-Countdown mit Fortschrittsring. Aktueller Ping kräftig, ältere gestrichelt und blasser. Das Sheet zeigt Kennzahlen und Verlauf.</p></figure><figure class="fig"><figcaption><b>6 · Gejagten-Ansicht</b><span>Grenzwarnung mit Countdown</span></figcaption><div class="phone fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche, Spieler außerhalb der Grenze"><defs>
+<pattern id="gu4" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu4" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu4)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M45 290a150 150 0 1 0 300 0a150 150 0 1 0 -300 0Z"/><circle class="boundfill bad" cx="195" cy="290" r="150"/><circle class="bound bad" cx="195" cy="290" r="150"/>
+<polygon fill="url(#hu4)" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4" points="102,236 160,226 176,286 114,298"/>
+<text x="140" y="268" text-anchor="middle" class="svgt bad">Sperrzone</text>
+<path class="trail" d="M232 392 C250 372 280 352 306 330 C326 312 338 290 352 262"/>
+<circle class="fx rr" cx="195" cy="290" r="100"/><circle class="fx rr" cx="195" cy="290" r="50"/>
+<circle class="acc" cx="352" cy="262" r="26"/><circle class="hid-halo" cx="352" cy="262" r="17"/><circle class="hid-dot" cx="352" cy="262" r="8"/></svg>
+<div class="hudtop"><div class="card warncard"><span class="wi"><svg class="ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></span><div class="grow"><b>Außerhalb des Spielgebiets!</b><small>Zurück in die Zone, sonst wirst du disqualifiziert.</small></div><b class="cd bad">0:12</b></div>
+<div class="wbar"><i style="width:60%"></i></div>
+<span class="pill glass">Nächster Sucher-Ping in 01:12 · Kreis ~250 m</span></div>
+<div class="fabs left"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="row between"><div class="row"><span class="av gejagt">E</span><div><b>Du bist Gejagter</b><small class="sub d">Status: frei · Vorsprung vorbei</small></div></div><span class="pill ok">frei</span></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile "><span class="lbl">Ping in</span><span class="v">01:12</span></div></div>
+<button class="btn found"><span class="hold"></span><span class="bt"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg> Ich wurde gefunden</span></button>
+<p class="hint">Gedrückt halten (2 s) zum Bestätigen. Kein Auto-Fangen per GPS.</p>
+</div></div><div class="hi"></div></div><p class="note">Außerhalb der Grenze: roter Warnbalken mit Sekunden-Countdown und Fortschrittsleiste. „Ich wurde gefunden“ nur per Gedrückt-halten, gegen Fehltipps.</p></figure><figure class="fig"><figcaption><b>7 · Ergebnis</b><span>Rundenende: Zeit abgelaufen</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="trophy"><div class="fx sweep sm"></div><span class="tr"><svg class="ico" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 01-8 0z"/><path d="M8 6H4v1a4 4 0 004 4M16 6h4v1a4 4 0 01-4 4M12 13v4M8 20h8M10 17h4"/></svg></span></div>
+<div class="center"><span class="lbl">Runde beendet · Zeit abgelaufen</span><h1 class="win">Gejagte gewinnen</h1><p class="sub">Mia und Lena blieben 60:00 min unentdeckt.</p></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Dauer</span><span class="v">60:00</span></div><div class="tile "><span class="lbl">Gefunden</span><span class="v">2 / 4</span></div><div class="tile "><span class="lbl">Pings</span><span class="v">12</span></div></div>
+<div class="card nopadc"><svg viewBox="0 0 390 170" preserveAspectRatio="xMidYMid slice" width="100%" height="150" role="img" aria-label="Stilisierter Spielverlauf"><defs>
+<pattern id="gu5" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu5" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="170"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="170" fill="url(#gu5)"/><circle class="bound" cx="195" cy="85" r="78"/>
+<path class="trail t1" d="M150 120 C165 90 200 80 230 60"/><path class="trail t2" d="M120 90 C160 100 190 60 250 90"/>
+<path class="trail t3" d="M200 135 C215 110 250 120 270 100" />
+<circle class="hid-dot" cx="230" cy="60" r="5"/><circle class="hid-dot" cx="250" cy="90" r="5"/>
+<circle class="found-x" cx="270" cy="100" r="5"/><circle class="found-x" cx="150" cy="120" r="5"/></svg><div class="mapcap"><span class="lbl">Spielverlauf</span><span class="sub">Wege der Gejagten</span></div></div>
+<span class="lbl">Ergebnis Gejagte</span>
+<div class="card list"><div class="pl"><span class="av gejagt">M</span><div class="grow"><b>Mia</b><small>überlebt 60:00</small></div><span class="pill ok">Sieg</span></div><div class="pl"><span class="av gejagt">L</span><div class="grow"><b>Lena</b><small>überlebt 60:00</small></div><span class="pill ok">Sieg</span></div><div class="pl"><span class="av gejagt">J</span><div class="grow"><b>Jonas</b><small>gefunden bei 34:12</small></div><span class="pill bad">Gefunden</span></div><div class="pl"><span class="av gejagt">T</span><div class="grow"><b>Tom</b><small>gefunden bei 21:40</small></div><span class="pill bad">Gefunden</span></div></div>
+<div class="two"><button class="btn sec">Zur Lobby</button><button class="btn pri">Revanche</button></div>
+<p class="hint">Revanche tauscht die Rollen. Gleiche Regeln, gleiches Gebiet.</p>
+</div><div class="hi"></div></div><p class="note">Sieger-Banner, drei Kacheln, Spielverlauf als Mini-Karte, Ergebnisliste. „Revanche“ tauscht Rollen.</p></figure></div><h2 class="sect">Hellmodus (zusätzliche Screens)</h2><div class="board"><figure class="fig"><figcaption><b>1 · Lobby (hell)</b><span>Gleiche Struktur, gleiche Akzente</span></figcaption><div class="phone light"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="toprow"><span class="lbl">Version 0.1 · Beta</span><div class="tgl" role="group" aria-label="Darstellung"><span class="on"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class=""><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span></div></div>
+<div class="brand"><div class="logowrap"><div class="fx sweep sm"></div><svg class="logo " width="92" height="92" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h1>Fährte</h1><p class="tag">Jagd im echten Gelände.<br>Verstecken, suchen, entkommen.</p></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></div><div class="grow"><h3>Spiel erstellen</h3><p class="sub">Du wirst Host und legst Regeln und Spielgebiet fest.</p></div></div><button class="btn pri">Neues Spiel erstellen</button></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></div><div class="grow"><h3>Spiel beitreten</h3><p class="sub">6-stelligen Code eingeben oder QR scannen.</p></div></div>
+<div class="code"><span class="cb">K</span><span class="cb">7</span><span class="cb">M</span><span class="cb cur"></span><span class="cb"></span><span class="cb"></span></div>
+<div class="two"><button class="btn sec"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.5M14 20h3M20 18v3"/></svg> QR scannen</button><button class="btn pri dis">Beitreten</button></div></div>
+<div class="card hud tight"><span class="lbl">Letzte Runde</span><div class="row between"><b>Stadtpark-Jagd</b><span class="pill ok">Gejagte gewonnen</span></div><p class="sub">60 min · 6 Spieler · gestern, 17:40</p></div>
+</div><div class="hi"></div></div></figure><figure class="fig"><figcaption><b>5 · Sucher (hell)</b><span>Karte wird hell, HUD bleibt lesbar</span></figcaption><div class="phone light fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche mit Ping-Kreis und Spielgrenze"><defs>
+<pattern id="gu6" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu6" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu6)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M20 290a175 175 0 1 0 350 0a175 175 0 1 0 -350 0Z"/><circle class="boundfill" cx="195" cy="290" r="175"/><circle class="bound" cx="195" cy="290" r="175"/>
+<circle class="fx rr" cx="195" cy="290" r="117"/><circle class="fx rr" cx="195" cy="290" r="58"/>
+<circle class="oldping" cx="292" cy="372" r="58"/><circle class="oldping" cx="140" cy="205" r="58"/>
+<text x="292" y="376" text-anchor="middle" class="svgt mut">#5</text><text x="140" y="209" text-anchor="middle" class="svgt mut">#6</text>
+<circle class="ping" cx="246" cy="228" r="58"/><circle class="ping2" cx="246" cy="228" r="58"/>
+<text x="246" y="232" text-anchor="middle" class="svgt big">#7</text>
+<rect class="chipbox" x="198" y="292" width="96" height="24" rx="12"/><text x="246" y="308" text-anchor="middle" class="svgt">Ping · ca. 250 m</text>
+<g class="mate"><circle cx="228" cy="392" r="6"/><circle cx="130" cy="448" r="6"/></g><circle class="me-halo" cx="176" cy="420" r="16"/><circle class="me-dot" cx="176" cy="420" r="7"/></svg>
+<div class="fx sweep"></div>
+<div class="hudtop"><div class="card hud pingcd"><svg class="rg" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="74.6" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="var(--tx)">5:00</text></svg><div class="grow"><span class="lbl">Nächster Ping in</span><b class="cd">02:41</b></div><span class="pill ac">Sucher</span></div>
+<span class="pill glass">Letzter Ping vor 2:19 · Kreis ~250 m</span></div>
+<div class="fabs"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile okc"><span class="lbl">Grenze</span><span class="v">innen</span><small>180 m Rand</small></div></div>
+<div class="row between"><span class="lbl">Ping-Verlauf</span><span class="sub">Gejagte: Vorsprung vorbei</span></div>
+<div class="hist"><div class="hrow now"><span class="hn">#7</span><b>vor 2:19</b><small>Kreis ~250 m</small><span class="pill ac">neu</span></div><div class="hrow"><span class="hn">#6</span><b>vor 7:19</b><small>Kreis ~250 m</small></div><div class="hrow"><span class="hn">#5</span><b>vor 12:19</b><small>Kreis ~250 m</small></div></div>
+</div></div><div class="hi"></div></div></figure><figure class="fig"><figcaption><b>6 · Gejagter (hell, innerhalb)</b><span>Normalzustand ohne Warnung</span></figcaption><div class="phone light fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche, Spieler innerhalb der Grenze"><defs>
+<pattern id="gu7" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu7" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu7)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M20 290a175 175 0 1 0 350 0a175 175 0 1 0 -350 0Z"/><circle class="boundfill" cx="195" cy="290" r="175"/><circle class="bound" cx="195" cy="290" r="175"/>
+<circle class="fx rr" cx="195" cy="290" r="117"/><circle class="fx rr" cx="195" cy="290" r="58"/>
+<path class="trail" d="M120 470 C150 440 180 420 215 380 C240 350 270 330 285 300"/>
+<circle class="acc" cx="285" cy="300" r="26"/><circle class="hid-halo" cx="285" cy="300" r="17"/><circle class="hid-dot" cx="285" cy="300" r="8"/></svg>
+<div class="hudtop"><div class="card hud pingcd"><svg class="rg" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="38.7" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="var(--tx)">5:00</text></svg><div class="grow"><span class="lbl">Sucher-Ping in</span><b class="cd">01:12</b></div><span class="pill hid">Gejagter</span></div>
+<span class="pill glass">Innerhalb der Grenze · 96 m bis zum Rand</span></div>
+<div class="fabs"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="row between"><div class="row"><span class="av gejagt">E</span><div><b>Du bist Gejagter</b><small class="sub d">Status: frei · Vorsprung vorbei</small></div></div><span class="pill ok">frei</span></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile "><span class="lbl">Pings</span><span class="v">7</span></div></div>
+<button class="btn found"><span class="hold"></span><span class="bt"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg> Ich wurde gefunden</span></button>
+<p class="hint">Gedrückt halten (2 s) zum Bestätigen.</p>
+</div></div><div class="hi"></div></div></figure></div><section class="names"><h2>App-Name &amp; Logo</h2>
+<div class="ncards">
+<div class="ncard pick"><div class="nl"><svg class="logo " width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h3>Fährte</h3><span class="pill ac">Favorit</span><p>Deutsch für „Spur“. Kurz, merkbar, passt zu Suchen und Entkommen. Logo: Spielgrenze als Ring mit Lücke, darin ein Ping-Kreis und ein Punkt (der Gejagte). Der kleine Punkt außen ist der Sucher auf der Spur.</p></div>
+<div class="ncard"><div class="nl"><svg class="logo" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Pingjagd">
+<circle class="lg-d" cx="22" cy="42" r="7"/>
+<path class="lg-a" d="M32 30a14 14 0 0 1 14 14" stroke-width="3.5" stroke-linecap="round"/>
+<path class="lg-a" d="M32 18a26 26 0 0 1 26 26" stroke-width="3.5" stroke-linecap="round" opacity=".6"/>
+<path class="lg-a" d="M32 6a38 38 0 0 1 38 38" stroke-width="3.5" stroke-linecap="round" opacity=".3" transform="translate(-6 0) scale(.84)"/>
+</svg></div><h3>Pingjagd</h3><p>Sagt direkt, worum es geht: Standort-Pings. Logo: Punkt mit drei auslaufenden Signalbögen, nach oben rechts größer werdend.</p></div>
+<div class="ncard"><div class="nl"><svg class="logo" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Wildwechsel">
+<circle class="lg-a" cx="25" cy="32" r="18" stroke-width="3.5"/>
+<circle class="lg-d2" cx="39" cy="32" r="18" stroke-width="3.5"/>
+<path class="lg-d" d="M32 17.2a18 18 0 0 1 0 29.6a18 18 0 0 1 0-29.6z" stroke="none" opacity=".9"/>
+</svg></div><h3>Wildwechsel</h3><p>Der Pfad, auf dem Wild wechselt. Logo: zwei überlappende Kreise (Sucher-Radius und Gejagten-Radius), die Schnittmenge leuchtet als „Treffer“.</p></div>
+</div></section><div class="legend"><p><b>Farblogik:</b> Blau = Sucher / Interaktion · Orange = Gejagte · Rot = Gefahr, Sperrzone, Grenzwarnung · Grün = Status ok.</p>
+<p><b>Touch:</b> Alle Buttons mindestens 54 px hoch, Chips mindestens 40 px. Der kritische „Gefunden“-Button braucht langes Drücken.</p>
+<p><b>Hinweis:</b> Statische Mockups, keine Funktion. Systemschriften, keine externen Ressourcen.</p></div></body></html>

@@ -1,0 +1,8 @@
+{
+  "leaflet": "1.9.4",
+  "@geoman-io/leaflet-geoman-free": "2.20.4",
+  "@turf/turf": "7.4.0",
+  "@supabase/supabase-js": "2.118.0",
+  "qrcode-generator": "2.0.4",
+  "jsqr": "1.4.0"
+}

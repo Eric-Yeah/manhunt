@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fährte – Design B: Radar / Taktik</title>
+<style>
+:root{--page:#06090e;--bg:#0d141d;--card:#162130;--card2:#1d2b3d;--line:#26364a;--tx:#e8eef6;--mut:#8fa1b6;--ac:#4c9aff;--ac-soft:rgba(76,154,255,.16);--on-ac:#fff;--hid:#ff9a62;--hid-soft:rgba(255,154,98,.16);--ok:#34d399;--ok-soft:rgba(52,211,153,.15);--warn:#fbbf24;--bad:#f87171;--bad-soft:rgba(248,113,113,.16);--glow:transparent;--grid:transparent;
+--m-bg:#14202e;--m-park:#183246;--m-water:#0f2c4a;--m-road:#243a52;--m-road2:#1d3045;--m-b:#1b2b3d;--outside:rgba(6,10,16,.62);--shadow:0 12px 30px rgba(0,0,0,.35);--mono:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;--r:20px;--rb:18px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--page);color:var(--tx);line-height:1.4;padding:32px 16px 64px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.page-h{max-width:1100px;margin:0 auto 28px;text-align:center}
+.page-h h1{font-size:30px;letter-spacing:-.01em}
+.page-h p{color:var(--mut);max-width:720px;margin:8px auto 0;font-size:15px}
+.dtag{display:inline-block;margin-bottom:10px;padding:4px 12px;border-radius:99px;background:var(--ac-soft);color:var(--ac);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sect{max-width:1500px;margin:40px auto 14px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);display:flex;align-items:center;gap:12px}
+.sect:after{content:"";flex:1;height:1px;background:var(--line)}
+.board{display:flex;flex-wrap:wrap;gap:36px 32px;justify-content:center;align-items:flex-start;max-width:1500px;margin:0 auto}
+.fig{width:410px;max-width:100%}
+.fig figcaption{display:flex;flex-direction:column;gap:2px;margin:0 6px 12px}
+.fig figcaption b{font-size:16px}
+.fig figcaption span{font-size:13px;color:var(--mut)}
+.note{margin:12px 8px 0;font-size:13px;color:var(--mut)}
+/* Handy */
+.phone{--bg:#0d141d;width:410px;max-width:100%;border:10px solid #000;border-radius:54px;background:var(--bg);color:var(--tx);position:relative;overflow:hidden;box-shadow:0 0 0 2px #2a3340,var(--shadow);min-height:864px;display:flow-root}
+.phone.fixed{height:864px;min-height:0}
+.di{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:112px;height:32px;border-radius:20px;background:#000;z-index:20}
+.hi{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:var(--tx);opacity:.7;z-index:20}
+.sb{height:50px;padding:16px 28px 0;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:15px;position:relative;z-index:15}
+.sbr{display:flex;gap:6px;align-items:center}
+.scr{padding:8px 16px 40px;display:flex;flex-direction:column;gap:14px;position:relative}
+.scr.nopad{padding:0;gap:0}
+.light{--bg:#eef2f7;--card:#fff;--card2:#e6edf5;--line:#d3dde9;--tx:#0f1a2a;--mut:#5a6d84;--ac:#2563eb;--ac-soft:rgba(37,99,235,.11);--hid:#d9580f;--hid-soft:rgba(217,88,15,.12);--ok:#059669;--ok-soft:rgba(5,150,105,.12);--warn:#b45309;--bad:#dc2626;--bad-soft:rgba(220,38,38,.1);
+--m-bg:#e6ecf3;--m-park:#d3e7de;--m-water:#bcd8f0;--m-road:#fff;--m-road2:#f4f7fa;--m-b:#d8e1ea;--outside:rgba(180,194,210,.62);--shadow:0 12px 30px rgba(15,26,42,.25);background:var(--bg)}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.sub{font-size:13px;color:var(--mut)}
+small{font-size:12px;color:var(--mut);display:block}
+h1{font-size:34px;letter-spacing:-.02em;line-height:1.1}
+h2{font-size:20px}h3{font-size:17px}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.card{background:var(--card);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card.tight{gap:6px}
+.card.list{padding:6px 14px;gap:0}
+.card.nopadc{padding:0;overflow:hidden;position:relative}
+.cl{display:flex;justify-content:space-between;align-items:baseline}
+.val{font-weight:700;color:var(--ac);font-size:15px}.val.big{font-size:22px}
+/* Header */
+.hdr{display:flex;align-items:center;gap:12px;padding:4px 0 2px}
+.ib{width:40px;height:40px;border-radius:14px;background:var(--card);display:grid;place-items:center;color:var(--tx);flex:none}
+.ib.sm{width:34px;height:34px;border-radius:11px;background:var(--card2)}
+.ht{flex:1}.ht h2{line-height:1.15}
+.step{font-size:12.5px;color:var(--mut)}
+.hdr.floaty{position:absolute;top:50px;left:16px;right:16px;z-index:12;background:var(--card);border-radius:18px;padding:8px 12px;box-shadow:var(--shadow)}
+.hdr.floaty .ib{background:var(--card2)}
+/* Buttons */
+.btn{height:54px;border-radius:var(--rb);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;transition:none}
+.btn.pri{background:var(--ac);color:var(--on-ac)}
+.btn.pri.dis{opacity:.45}
+.btn.sec{background:var(--card2);color:var(--tx);border:1px solid var(--line)}
+.btn.sm{height:42px;font-size:13px;border-radius:14px;gap:6px;padding:0 6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ico-b{width:44px;height:44px;border-radius:14px;background:var(--ac-soft);color:var(--ac);display:grid;place-items:center;flex:none}.ico-b.sm{width:36px;height:36px;border-radius:12px}
+/* Chips / Auswahl */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:10px 14px;border-radius:14px;background:var(--card2);color:var(--mut);font-weight:600;font-size:14px;border:1px solid transparent;display:inline-flex;gap:6px;align-items:center}
+.chip.on{background:var(--ac);color:var(--on-ac)}
+.rules .chip{font-size:12.5px;padding:7px 11px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+.opt{display:flex;gap:12px;align-items:center;padding:12px;border-radius:16px;background:var(--card2);border:1px solid transparent}
+.opt.on{border-color:var(--ac);background:var(--ac-soft)}
+.opt b{font-size:15px;display:block}
+.oi{color:var(--ac);width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--card)}
+.rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex:none}.rad.on{border:6px solid var(--ac);background:var(--on-ac)}
+.subchips{padding:0 0 0 50px;margin-top:-4px}
+.subchips .chip{padding:8px 12px}
+.sw{width:50px;height:30px;border-radius:15px;background:var(--card2);position:relative;flex:none;border:1px solid var(--line)}
+.sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--mut)}
+.sw.on{background:var(--ac);border-color:var(--ac)}.sw.on i{left:23px;background:#fff}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--card2);border-radius:14px;padding:4px;gap:4px}
+.seg span{text-align:center;padding:9px 4px;border-radius:11px;font-size:13px;font-weight:600;color:var(--mut)}
+.seg .on{background:var(--ac);color:var(--on-ac)}
+.sl{height:8px;border-radius:4px;background:var(--card2);position:relative;margin:10px 8px 8px 0}
+.sl i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--ac)}
+.sl b{position:absolute;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:#fff;border:4px solid var(--ac);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.scale{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut)}
+/* Kacheln */
+.tiles3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{background:var(--card2);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.card .tile{background:var(--card2)}
+.scr > .tiles3 .tile,.sheet .tile{background:var(--card)}
+.tile .lbl{font-size:10.5px;letter-spacing:.07em}
+.tile .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile small{font-size:11px}
+.pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--card2);color:var(--mut);white-space:nowrap}
+.pill.ac{background:var(--ac-soft);color:var(--ac)}.pill.hid{background:var(--hid-soft);color:var(--hid)}.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.glass{background:var(--card);color:var(--tx);box-shadow:var(--shadow);font-weight:600;padding:7px 12px;align-self:flex-start}
+.hint{font-size:12.5px;color:var(--mut);text-align:center;padding:0 8px}
+/* Lobby */
+.toprow{display:flex;justify-content:space-between;align-items:center}
+.tgl{display:flex;background:var(--card);border-radius:99px;padding:3px;border:1px solid var(--line)}
+.tgl span{width:38px;height:30px;border-radius:99px;display:grid;place-items:center;color:var(--mut)}.tgl .on{background:var(--ac);color:var(--on-ac)}
+.brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:8px 0 6px}
+.logowrap{position:relative;width:110px;height:110px;display:grid;place-items:center;color:var(--ac)}
+.tag{color:var(--mut);font-size:15px}
+.logo{color:var(--ac);overflow:visible}.lg-a{stroke:var(--ac)}.lg-d{fill:var(--hid)}.lg-d2{stroke:var(--hid)}
+.code{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.cb{height:54px;border-radius:14px;background:var(--card2);border:1px solid var(--line);display:grid;place-items:center;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.cb.cur{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac-soft)}
+/* Warteraum */
+.codecard{flex-direction:row;align-items:center;gap:14px}
+.bigcode{font-size:34px;font-weight:800;letter-spacing:.08em;font-family:var(--mono);margin:2px 0 10px}
+.qr{border-radius:12px;padding:6px;background:#fff;flex:none}
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.role{background:var(--card);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;border:1.5px solid transparent}
+.role.on{border-color:var(--ac);background:var(--ac-soft)}
+.role small{font-size:11.5px}
+.ri{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--ac-soft);color:var(--ac);margin-bottom:4px}.ri.hid{background:var(--hid-soft);color:var(--hid)}.ri.mut{background:var(--card2);color:var(--mut)}
+.pl{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}.pl:last-child{border:0}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none;background:var(--card2)}
+.av.sucher{background:var(--ac-soft);color:var(--ac)}.av.gejagt{background:var(--hid-soft);color:var(--hid)}.av.zufall{background:var(--card2);color:var(--mut)}
+.crown{color:var(--warn);margin-left:6px;vertical-align:-2px;display:inline-block}
+.rdy{width:10px;height:10px;border-radius:50%;background:var(--card2);border:1px solid var(--line)}.rdy.ok{background:var(--ok);border-color:var(--ok)}
+/* Karte */
+.mapbox{height:420px;margin-top:-50px;position:relative}.mapbox svg{display:block}
+.panel{background:var(--bg);border-radius:26px 26px 0 0;margin-top:-26px;position:relative;padding:18px 16px 40px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -10px 24px rgba(0,0,0,.25)}
+.m-bg{fill:var(--m-bg)}.m-park{fill:var(--m-park)}.m-water{fill:none;stroke:var(--m-water);stroke-width:22;stroke-linecap:round}
+.m-road{fill:none;stroke:var(--m-road);stroke-width:9;stroke-linecap:round}.m-road2{fill:none;stroke:var(--m-road2);stroke-width:4.5;stroke-linecap:round}
+.m-b rect{fill:var(--m-b)}
+.fx{display:none}
+.outside{fill:var(--outside)}
+.bound{fill:none;stroke:var(--ac);stroke-width:3;stroke-dasharray:10 7}.bound.bad{stroke:var(--bad)}
+.boundfill{fill:var(--ac-soft);opacity:.45}.boundfill.bad{fill:var(--bad-soft)}
+.handle{fill:#fff;stroke:var(--ac);stroke-width:4}.rad-line{stroke:var(--ac);stroke-width:2.5}
+.mid{fill:var(--ac);stroke:#fff;stroke-width:3}
+.vtx{fill:var(--ac);stroke:#fff;stroke-width:2.5}
+.chipbox{fill:var(--card);stroke:var(--line)}
+.svgt{font:700 12px -apple-system,"SF Pro Text",Helvetica,Arial,sans-serif;fill:var(--tx)}.svgt.mut{fill:var(--mut)}.svgt.bad{fill:var(--bad)}.svgt.big{font-size:20px;fill:var(--ac)}.svgt.on-ac{fill:#fff}
+.ping{fill:var(--ac-soft);stroke:var(--ac);stroke-width:3}.ping2{fill:none;stroke:var(--ac);stroke-width:1.5;opacity:.5;transform-origin:246px 228px;animation:pg 2.4s ease-out infinite}
+.oldping{fill:none;stroke:var(--ac);stroke-width:2;stroke-dasharray:4 5;opacity:.5}
+.me-halo{fill:var(--ac-soft)}.me-dot{fill:var(--ac);stroke:#fff;stroke-width:3.5}
+.hid-halo{fill:var(--hid-soft)}.hid-dot{fill:var(--hid);stroke:#fff;stroke-width:3.5}
+.mate circle{fill:var(--ac);opacity:.75;stroke:#fff;stroke-width:2.5}
+.acc{fill:var(--hid-soft);stroke:var(--hid);stroke-width:1.5;stroke-dasharray:3 4}
+.trail{fill:none;stroke:var(--hid);stroke-width:3;stroke-dasharray:2 7;stroke-linecap:round;opacity:.85}
+.found-x{fill:var(--bad);stroke:#fff;stroke-width:2}
+@keyframes pg{0%{transform:scale(.7);opacity:.7}100%{transform:scale(1.35);opacity:0}}
+.mapscr{padding:0;position:absolute;inset:0;display:block}
+.fullmap{position:absolute;top:0;left:0;width:100%;height:600px}
+.hudtop{position:absolute;top:54px;left:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:6}
+.pingcd{flex-direction:row;align-items:center;gap:12px;padding:10px 14px 10px 10px;box-shadow:var(--shadow)}
+.cd{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);display:block;line-height:1.1}.cd.bad{color:var(--bad);font-size:30px}
+.warncard{flex-direction:row;align-items:center;gap:10px;background:var(--bad-soft);background-color:var(--card);border:1.5px solid var(--bad);padding:12px 14px;box-shadow:var(--shadow)}
+.warncard b:first-of-type{font-size:15px;display:block}
+.warncard .wi{color:var(--bad)}
+.wbar{height:6px;border-radius:3px;background:var(--card);overflow:hidden;margin-top:-2px}.wbar i{display:block;height:100%;background:var(--bad)}
+.fabs.left{right:auto;left:16px}
+.fabs{position:absolute;right:16px;top:230px;display:flex;flex-direction:column;gap:10px;z-index:6}
+.fab{width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center;box-shadow:var(--shadow)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-radius:28px 28px 0 0;padding:10px 16px 34px;display:flex;flex-direction:column;gap:12px;z-index:7;box-shadow:0 -12px 30px rgba(0,0,0,.3)}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);align-self:center}
+.hist{display:flex;flex-direction:column;gap:6px}
+.hrow{display:flex;gap:10px;align-items:center;background:var(--card);border-radius:14px;padding:9px 12px;font-size:14px}
+.hrow small{margin-left:auto;margin-right:4px}.hrow.now{outline:1.5px solid var(--ac)}
+.hn{font-weight:800;color:var(--ac);width:28px;font-variant-numeric:tabular-nums}
+.btn.found{background:var(--bad-soft);border:1.5px solid var(--bad);color:var(--bad);position:relative;overflow:hidden;height:60px}
+.btn.found .hold{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--bad);opacity:.25}
+.btn.found .bt{position:relative;display:flex;gap:8px;align-items:center}
+.sub.d{display:block}
+.okc .v{color:var(--ok)}
+/* Panel Sperrzone */
+.zone{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:16px;padding:10px 12px;border:1px solid var(--bad)}
+.zsw{width:26px;height:26px;border-radius:8px;background:repeating-linear-gradient(45deg,var(--bad-soft) 0 4px,var(--bad) 4px 6px);flex:none}
+/* Ergebnis */
+.trophy{align-self:center;width:112px;height:112px;border-radius:50%;background:var(--ac-soft);display:grid;place-items:center;position:relative;color:var(--ac);margin-top:6px}
+.trophy .tr{width:84px;height:84px;border-radius:50%;background:var(--card);display:grid;place-items:center;position:relative}
+.center{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+.win{color:var(--hid)}
+.mapcap{display:flex;gap:10px;align-items:baseline;position:absolute;left:10px;bottom:10px;background:var(--card);border-radius:12px;padding:6px 10px}
+.sweep{display:none}
+.names{max-width:1100px;margin:44px auto 0}
+.names h2{font-size:22px;margin-bottom:16px;text-align:center}
+.ncards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.ncard{background:var(--card);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;border:1px solid var(--line)}
+.ncard.pick{border-color:var(--ac)}
+.ncard p{font-size:14px;color:var(--mut)}
+.nl{width:84px;height:84px;border-radius:22px;background:var(--bg);display:grid;place-items:center;color:var(--ac)}
+.legend{max-width:1100px;margin:36px auto 0;color:var(--mut);font-size:14px;display:grid;gap:8px}
+.legend b{color:var(--tx)}
+@media (prefers-reduced-motion:reduce){.ping2,.sweep{animation:none!important}}
+
+body.b{--page:#02070c;--bg:#040d14;--card:rgba(8,26,38,.88);--card2:#0a2232;--line:rgba(34,211,238,.26);--tx:#d3f2f9;--mut:#6aa0b0;--ac:#22d3ee;--ac-soft:rgba(34,211,238,.13);--on-ac:#03222b;--hid:#ff7a3d;--hid-soft:rgba(255,122,61,.15);--ok:#4ade80;--ok-soft:rgba(74,222,128,.13);--warn:#fbbf24;--bad:#ff5470;--bad-soft:rgba(255,84,112,.16);--glow:rgba(34,211,238,.55);--grid:rgba(34,211,238,.09);
+--m-bg:#04101a;--m-park:rgba(34,211,238,.06);--m-water:rgba(34,211,238,.12);--m-road:rgba(34,211,238,.34);--m-road2:rgba(34,211,238,.18);--m-b:transparent;--outside:rgba(1,6,10,.72);--mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;--r:12px;--rb:10px}
+.b .phone{--bg:#040d14}
+.b .light{--bg:#e8f5f8;--card:rgba(255,255,255,.9);--card2:#d3eaf0;--line:rgba(8,110,140,.36);--tx:#07303b;--mut:#44727f;--ac:#0891b2;--ac-soft:rgba(8,145,178,.13);--on-ac:#fff;--hid:#d4500f;--hid-soft:rgba(212,80,15,.12);--ok:#15803d;--bad:#d41c43;--bad-soft:rgba(212,28,67,.1);--glow:rgba(8,145,178,.35);--grid:rgba(8,145,178,.12);
+--m-bg:#e0f0f4;--m-park:rgba(8,145,178,.08);--m-water:rgba(8,145,178,.16);--m-road:rgba(8,110,140,.45);--m-road2:rgba(8,110,140,.25);--outside:rgba(190,215,224,.75)}
+.b .fx{display:inline}
+.b .sweep{display:block}
+.b .phone{box-shadow:0 0 0 2px #0e2a38,0 0 40px -8px rgba(34,211,238,.35)}
+.b .phone:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:30;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
+.b .light:before{display:none}
+.b .lbl,.b .step,.b .pill,.b .btn,.b .seg span,.b .chip,.b .tile .v,.b .val{font-family:var(--mono)}
+.b .lbl{letter-spacing:.14em;font-size:10.5px}
+.b .btn{text-transform:uppercase;letter-spacing:.1em;font-size:14px}
+.b .btn.pri{box-shadow:0 0 22px -4px var(--glow);background:var(--ac)}
+.b .btn.sec{background:transparent;border-color:var(--ac);color:var(--ac)}
+.b .card,.b .tile,.b .opt,.b .hrow,.b .pl{border-radius:var(--r)}
+.b .card{border:1px solid var(--line);box-shadow:0 0 20px -10px var(--glow)}
+.b .card.hud{background-color:var(--card);background-repeat:no-repeat;background-image:linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac)),linear-gradient(var(--ac),var(--ac));background-size:14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px,14px 2px,2px 14px;background-position:0 0,0 0,100% 0,100% 0,0 100%,0 100%,100% 100%,100% 100%}
+.b .tile{border:1px solid var(--line);background:var(--card2)}
+.b .scr>.tiles3 .tile,.b .sheet .tile{background:var(--card)}
+.b .tile .v{font-size:18px;color:var(--ac);text-shadow:0 0 12px var(--glow)}
+.b .light .tile .v{text-shadow:none}
+.b .chip{border-radius:8px;border:1px solid var(--line)}.b .chip.on{box-shadow:0 0 16px -2px var(--glow);border-color:var(--ac)}
+.b .pill{border-radius:6px;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px}
+.b .ib,.b .fab{border:1px solid var(--line);border-radius:10px}.b .fab{border-radius:50%}
+.b h1{font-family:var(--mono);text-transform:uppercase;letter-spacing:.14em;font-size:30px;text-shadow:0 0 22px var(--glow)}
+.b .light h1{text-shadow:none}
+.b .cd{color:var(--ac);text-shadow:0 0 16px var(--glow)}.b .cd.bad{color:var(--bad);text-shadow:0 0 16px var(--bad)}
+.b .light .cd{text-shadow:none}
+.b .sheet{border-radius:18px 18px 0 0;border-top:1px solid var(--ac);box-shadow:0 -10px 30px -10px var(--glow);background:var(--bg)}
+.b .grab{background:var(--ac);opacity:.5;border-radius:0;height:3px;width:56px}
+.b .cb{border-radius:8px;border-color:var(--line)}
+.b .logo{filter:drop-shadow(0 0 8px var(--glow))}
+.b .bound{stroke-width:2.5;stroke-dasharray:3 6;filter:drop-shadow(0 0 5px var(--ac))}
+.b .bound.bad{filter:drop-shadow(0 0 5px var(--bad))}
+.b .ping{fill:rgba(34,211,238,.1);stroke-width:2.5;filter:drop-shadow(0 0 7px var(--ac))}
+.b .m-road{stroke-width:1.6;stroke-linecap:butt}.b .m-road2{stroke-width:1;stroke-linecap:butt}.b .m-water{stroke-width:16}
+.b .m-b rect{fill:none;stroke:var(--m-road2);stroke-width:1}
+.b .rr{fill:none;stroke:var(--ac);stroke-width:1;stroke-dasharray:2 5;opacity:.45}
+.b .me-dot,.b .hid-dot{filter:drop-shadow(0 0 6px currentColor)}
+.b .me-dot{fill:var(--ac)}.b .hid-dot{fill:var(--hid)}
+.b .warncard{box-shadow:0 0 28px -4px var(--bad)}
+.b .svgt{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.b .sweep{position:absolute;left:20px;top:115px;width:350px;height:350px;border-radius:50%;background:conic-gradient(from 0deg,rgba(34,211,238,0) 0 285deg,rgba(34,211,238,.26) 360deg);animation:spin 5s linear infinite;z-index:1;pointer-events:none;-webkit-mask:radial-gradient(circle,#000 0 99%,transparent 100%)}
+.b .light .sweep{background:conic-gradient(from 0deg,rgba(8,145,178,0) 0 285deg,rgba(8,145,178,.22) 360deg)}
+.b .sweep.sm{left:-16px;top:-16px;width:142px;height:142px;background:conic-gradient(from 0deg,rgba(34,211,238,0) 0 270deg,rgba(34,211,238,.3) 360deg);z-index:0}
+.b .logowrap:before,.b .logowrap:after{content:"";position:absolute;border-radius:50%;border:1px solid var(--line)}
+.b .logowrap:before{inset:-16px}.b .logowrap:after{inset:-34px;opacity:.5}
+.b .logowrap{margin:24px 0}
+.b .logowrap svg{position:relative;z-index:1}
+.b .brand{background:radial-gradient(circle at 50% 38%,rgba(34,211,238,.12),transparent 62%);margin:0 -16px;padding:0 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.b .nl{border:1px solid var(--line)}
+.b .scr.mapscr{display:block}
+</style>
+</head>
+<body class="b">
+<header class="page-h"><span class="dtag">Richtung B · Radar / Taktik</span><h1>Fährte – Radar &amp; Taktik</h1>
+<p>Gleiche Bausteine wie in Richtung A, aber mit Gitterkarte, Cyan-Glow, Monospace-Zahlen, Eck-Markierungen und einem rotierenden Radar-Sweep (Animation, bei „reduzierte Bewegung“ aus). Orange bleibt für Gejagte, Rot für Gefahr.</p></header><h2 class="sect">Lobby, Sucher, Gejagter (dunkel)</h2><div class="board"><figure class="fig"><figcaption><b>1 · Start / Lobby</b><span>Radar-Logo mit Sweep</span></figcaption><div class="phone"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="toprow"><span class="lbl">Version 0.1 · Beta</span><div class="tgl" role="group" aria-label="Darstellung"><span class=""><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class="on"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span></div></div>
+<div class="brand"><div class="logowrap"><div class="fx sweep sm"></div><svg class="logo " width="92" height="92" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h1>Fährte</h1><p class="tag">Jagd im echten Gelände.<br>Verstecken, suchen, entkommen.</p></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></div><div class="grow"><h3>Spiel erstellen</h3><p class="sub">Du wirst Host und legst Regeln und Spielgebiet fest.</p></div></div><button class="btn pri">Neues Spiel erstellen</button></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></div><div class="grow"><h3>Spiel beitreten</h3><p class="sub">6-stelligen Code eingeben oder QR scannen.</p></div></div>
+<div class="code"><span class="cb">K</span><span class="cb">7</span><span class="cb">M</span><span class="cb cur"></span><span class="cb"></span><span class="cb"></span></div>
+<div class="two"><button class="btn sec"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.5M14 20h3M20 18v3"/></svg> QR scannen</button><button class="btn pri dis">Beitreten</button></div></div>
+<div class="card hud tight"><span class="lbl">Letzte Runde</span><div class="row between"><b>Stadtpark-Jagd</b><span class="pill ok">Gejagte gewonnen</span></div><p class="sub">60 min · 6 Spieler · gestern, 17:40</p></div>
+</div><div class="hi"></div></div><p class="note">Das Logo sitzt in konzentrischen Radarringen. Karten bekommen Eck-Klammern wie ein Zielfernrohr-HUD.</p></figure><figure class="fig"><figcaption><b>5 · Sucher-Ansicht</b><span>Gitterkarte, Ping als Glow-Kreis</span></figcaption><div class="phone fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche mit Ping-Kreis und Spielgrenze"><defs>
+<pattern id="gu8" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu8" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu8)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M20 290a175 175 0 1 0 350 0a175 175 0 1 0 -350 0Z"/><circle class="boundfill" cx="195" cy="290" r="175"/><circle class="bound" cx="195" cy="290" r="175"/>
+<circle class="fx rr" cx="195" cy="290" r="117"/><circle class="fx rr" cx="195" cy="290" r="58"/>
+<circle class="oldping" cx="292" cy="372" r="58"/><circle class="oldping" cx="140" cy="205" r="58"/>
+<text x="292" y="376" text-anchor="middle" class="svgt mut">#5</text><text x="140" y="209" text-anchor="middle" class="svgt mut">#6</text>
+<circle class="ping" cx="246" cy="228" r="58"/><circle class="ping2" cx="246" cy="228" r="58"/>
+<text x="246" y="232" text-anchor="middle" class="svgt big">#7</text>
+<rect class="chipbox" x="198" y="292" width="96" height="24" rx="12"/><text x="246" y="308" text-anchor="middle" class="svgt">Ping · ca. 250 m</text>
+<g class="mate"><circle cx="228" cy="392" r="6"/><circle cx="130" cy="448" r="6"/></g><circle class="me-halo" cx="176" cy="420" r="16"/><circle class="me-dot" cx="176" cy="420" r="7"/></svg>
+<div class="fx sweep"></div>
+<div class="hudtop"><div class="card hud pingcd"><svg class="rg" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="74.6" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="var(--tx)">5:00</text></svg><div class="grow"><span class="lbl">Nächster Ping in</span><b class="cd">02:41</b></div><span class="pill ac">Sucher</span></div>
+<span class="pill glass">Letzter Ping vor 2:19 · Kreis ~250 m</span></div>
+<div class="fabs"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile okc"><span class="lbl">Grenze</span><span class="v">innen</span><small>180 m Rand</small></div></div>
+<div class="row between"><span class="lbl">Ping-Verlauf</span><span class="sub">Gejagte: Vorsprung vorbei</span></div>
+<div class="hist"><div class="hrow now"><span class="hn">#7</span><b>vor 2:19</b><small>Kreis ~250 m</small><span class="pill ac">neu</span></div><div class="hrow"><span class="hn">#6</span><b>vor 7:19</b><small>Kreis ~250 m</small></div><div class="hrow"><span class="hn">#5</span><b>vor 12:19</b><small>Kreis ~250 m</small></div></div>
+</div></div><div class="hi"></div></div><p class="note">Karte als reine Linien auf Gitter, Ping-Kreis leuchtet, Entfernungsringe gepunktet. Countdown groß in Monospace.</p></figure><figure class="fig"><figcaption><b>6 · Gejagten-Ansicht</b><span>Grenzwarnung im Radar-Look</span></figcaption><div class="phone fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche, Spieler außerhalb der Grenze"><defs>
+<pattern id="gu9" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu9" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu9)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M45 290a150 150 0 1 0 300 0a150 150 0 1 0 -300 0Z"/><circle class="boundfill bad" cx="195" cy="290" r="150"/><circle class="bound bad" cx="195" cy="290" r="150"/>
+<polygon fill="url(#hu9)" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4" points="102,236 160,226 176,286 114,298"/>
+<text x="140" y="268" text-anchor="middle" class="svgt bad">Sperrzone</text>
+<path class="trail" d="M232 392 C250 372 280 352 306 330 C326 312 338 290 352 262"/>
+<circle class="fx rr" cx="195" cy="290" r="100"/><circle class="fx rr" cx="195" cy="290" r="50"/>
+<circle class="acc" cx="352" cy="262" r="26"/><circle class="hid-halo" cx="352" cy="262" r="17"/><circle class="hid-dot" cx="352" cy="262" r="8"/></svg>
+<div class="hudtop"><div class="card warncard"><span class="wi"><svg class="ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg></span><div class="grow"><b>Außerhalb des Spielgebiets!</b><small>Zurück in die Zone, sonst wirst du disqualifiziert.</small></div><b class="cd bad">0:12</b></div>
+<div class="wbar"><i style="width:60%"></i></div>
+<span class="pill glass">Nächster Sucher-Ping in 01:12 · Kreis ~250 m</span></div>
+<div class="fabs left"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="row between"><div class="row"><span class="av gejagt">E</span><div><b>Du bist Gejagter</b><small class="sub d">Status: frei · Vorsprung vorbei</small></div></div><span class="pill ok">frei</span></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile "><span class="lbl">Ping in</span><span class="v">01:12</span></div></div>
+<button class="btn found"><span class="hold"></span><span class="bt"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg> Ich wurde gefunden</span></button>
+<p class="hint">Gedrückt halten (2 s) zum Bestätigen. Kein Auto-Fangen per GPS.</p>
+</div></div><div class="hi"></div></div><p class="note">Rote Grenze mit Glow und pulsierender Warnkarte. „Gefunden“-Button bleibt bewusst ruhig, braucht langes Drücken.</p></figure></div><h2 class="sect">Hellmodus (Tag-Radar)</h2><div class="board"><figure class="fig"><figcaption><b>5 · Sucher (hell)</b><span>Teal auf Weißblau, Glow reduziert</span></figcaption><div class="phone light fixed"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr mapscr">
+<svg class="fullmap" viewBox="0 0 390 600" preserveAspectRatio="xMidYMin slice" width="390" height="600" role="img" aria-label="Stilisierte Kartenfläche mit Ping-Kreis und Spielgrenze"><defs>
+<pattern id="gu10" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="var(--grid)" stroke-width="1"/></pattern>
+<pattern id="hu10" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="var(--bad-soft)"/><path d="M0 0V9" stroke="var(--bad)" stroke-width="2.2" opacity=".75"/></pattern>
+</defs>
+<rect class="m-bg" width="390" height="600"/>
+<path class="m-park" d="M-10 60C60 30 130 50 150 110C170 170 90 200 30 190C-10 185 -20 120 -10 60Z"/>
+<path class="m-park" d="M262 380C322 340 410 360 410 430L410 540C340 560 270 520 260 450Z"/>
+<path class="m-park" d="M80 430C130 410 190 430 180 480C170 530 100 540 70 500Z"/>
+<path class="m-water" d="M-10 330C80 300 140 380 220 350C300 320 340 250 410 262"/>
+<path class="m-road" d="M0 150L390 212"/>
+<path class="m-road" d="M120 0C140 150 110 300 150 600"/>
+<path class="m-road" d="M0 480C120 440 260 500 390 450"/>
+<path class="m-road" d="M300 0L262 250L292 600"/>
+<path class="m-road2" d="M0 262L390 300"/>
+<path class="m-road2" d="M200 40L390 100"/>
+<path class="m-road2" d="M20 600L350 390"/>
+<path class="m-road2" d="M210 150L196 330"/>
+<path class="m-road2" d="M40 330L60 560"/>
+<path class="m-road2" d="M330 100L350 260"/>
+<g class="m-b"><rect x="160" y="170" width="22" height="16" rx="3"/><rect x="186" y="236" width="18" height="22" rx="3"/><rect x="224" y="250" width="26" height="14" rx="3"/><rect x="60" y="215" width="24" height="18" rx="3"/><rect x="96" y="276" width="14" height="14" rx="3"/><rect x="316" y="160" width="22" height="20" rx="3"/><rect x="330" y="300" width="20" height="16" rx="3"/><rect x="214" y="400" width="26" height="18" rx="3"/><rect x="240" y="60" width="20" height="16" rx="3"/><rect x="30" y="380" width="24" height="16" rx="3"/><rect x="120" y="500" width="22" height="16" rx="3"/><rect x="318" y="480" width="26" height="14" rx="3"/></g>
+<rect class="fx" width="390" height="600" fill="url(#gu10)"/><path class="outside" fill-rule="evenodd" d="M0 0H390V600H0Z M20 290a175 175 0 1 0 350 0a175 175 0 1 0 -350 0Z"/><circle class="boundfill" cx="195" cy="290" r="175"/><circle class="bound" cx="195" cy="290" r="175"/>
+<circle class="fx rr" cx="195" cy="290" r="117"/><circle class="fx rr" cx="195" cy="290" r="58"/>
+<circle class="oldping" cx="292" cy="372" r="58"/><circle class="oldping" cx="140" cy="205" r="58"/>
+<text x="292" y="376" text-anchor="middle" class="svgt mut">#5</text><text x="140" y="209" text-anchor="middle" class="svgt mut">#6</text>
+<circle class="ping" cx="246" cy="228" r="58"/><circle class="ping2" cx="246" cy="228" r="58"/>
+<text x="246" y="232" text-anchor="middle" class="svgt big">#7</text>
+<rect class="chipbox" x="198" y="292" width="96" height="24" rx="12"/><text x="246" y="308" text-anchor="middle" class="svgt">Ping · ca. 250 m</text>
+<g class="mate"><circle cx="228" cy="392" r="6"/><circle cx="130" cy="448" r="6"/></g><circle class="me-halo" cx="176" cy="420" r="16"/><circle class="me-dot" cx="176" cy="420" r="7"/></svg>
+<div class="fx sweep"></div>
+<div class="hudtop"><div class="card hud pingcd"><svg class="rg" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="27" cy="27" r="22" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="74.6" transform="rotate(-90 27 27)"/><text x="27" y="31" text-anchor="middle" font-size="12" font-weight="700" fill="var(--tx)">5:00</text></svg><div class="grow"><span class="lbl">Nächster Ping in</span><b class="cd">02:41</b></div><span class="pill ac">Sucher</span></div>
+<span class="pill glass">Letzter Ping vor 2:19 · Kreis ~250 m</span></div>
+<div class="fabs"><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg></span><span class="fab"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></span></div>
+<div class="sheet"><div class="grab"></div>
+<div class="tiles3"><div class="tile "><span class="lbl">Zeit übrig</span><span class="v">38:12</span></div><div class="tile "><span class="lbl">Gejagte frei</span><span class="v">3 / 4</span></div><div class="tile okc"><span class="lbl">Grenze</span><span class="v">innen</span><small>180 m Rand</small></div></div>
+<div class="row between"><span class="lbl">Ping-Verlauf</span><span class="sub">Gejagte: Vorsprung vorbei</span></div>
+<div class="hist"><div class="hrow now"><span class="hn">#7</span><b>vor 2:19</b><small>Kreis ~250 m</small><span class="pill ac">neu</span></div><div class="hrow"><span class="hn">#6</span><b>vor 7:19</b><small>Kreis ~250 m</small></div><div class="hrow"><span class="hn">#5</span><b>vor 12:19</b><small>Kreis ~250 m</small></div></div>
+</div></div><div class="hi"></div></div><p class="note">Im Hellmodus entfällt der Glow weitgehend, Linien und Ringe bleiben als Radar-Zitat.</p></figure><figure class="fig"><figcaption><b>1 · Lobby (hell)</b><span>Optional im Hellmodus</span></figcaption><div class="phone light"><div class="di"></div><div class="sb"><span>9:41</span><span class="sbr"><svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.500" width="3" height="9.500" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="27" height="13" viewBox="0 0 27 13" fill="none" aria-hidden="true"><rect x=".5" y=".5" width="22" height="12" rx="3.500" stroke="currentColor" opacity=".5"/><rect x="2" y="2" width="16" height="9" rx="2" fill="currentColor"/><rect x="24" y="4.500" width="2" height="4" rx="1" fill="currentColor" opacity=".5"/></svg></span></div><div class="scr">
+<div class="toprow"><span class="lbl">Version 0.1 · Beta</span><div class="tgl" role="group" aria-label="Darstellung"><span class="on"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span><span class=""><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg></span></div></div>
+<div class="brand"><div class="logowrap"><div class="fx sweep sm"></div><svg class="logo " width="92" height="92" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h1>Fährte</h1><p class="tag">Jagd im echten Gelände.<br>Verstecken, suchen, entkommen.</p></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></div><div class="grow"><h3>Spiel erstellen</h3><p class="sub">Du wirst Host und legst Regeln und Spielgebiet fest.</p></div></div><button class="btn pri">Neues Spiel erstellen</button></div>
+<div class="card hud"><div class="row"><div class="ico-b"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg></div><div class="grow"><h3>Spiel beitreten</h3><p class="sub">6-stelligen Code eingeben oder QR scannen.</p></div></div>
+<div class="code"><span class="cb">K</span><span class="cb">7</span><span class="cb">M</span><span class="cb cur"></span><span class="cb"></span><span class="cb"></span></div>
+<div class="two"><button class="btn sec"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.5M14 20h3M20 18v3"/></svg> QR scannen</button><button class="btn pri dis">Beitreten</button></div></div>
+<div class="card hud tight"><span class="lbl">Letzte Runde</span><div class="row between"><b>Stadtpark-Jagd</b><span class="pill ok">Gejagte gewonnen</span></div><p class="sub">60 min · 6 Spieler · gestern, 17:40</p></div>
+</div><div class="hi"></div></div></figure></div><section class="names"><h2>App-Name &amp; Logo</h2>
+<div class="ncards">
+<div class="ncard pick"><div class="nl"><svg class="logo " width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Fährte">
+<circle class="lg-a" cx="32" cy="32" r="27" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="132 38" transform="rotate(-70 32 32)"/>
+<circle class="lg-a" cx="32" cy="32" r="16" stroke-width="2.5" opacity=".55"/>
+<circle class="lg-d" cx="32" cy="32" r="5.5"/>
+<circle class="lg-a" cx="55" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+</svg></div><h3>Fährte</h3><span class="pill ac">Favorit</span><p>Deutsch für „Spur“. Kurz, merkbar, passt zu Suchen und Entkommen. Logo: Spielgrenze als Ring mit Lücke, darin ein Ping-Kreis und ein Punkt (der Gejagte). Der kleine Punkt außen ist der Sucher auf der Spur.</p></div>
+<div class="ncard"><div class="nl"><svg class="logo" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Pingjagd">
+<circle class="lg-d" cx="22" cy="42" r="7"/>
+<path class="lg-a" d="M32 30a14 14 0 0 1 14 14" stroke-width="3.5" stroke-linecap="round"/>
+<path class="lg-a" d="M32 18a26 26 0 0 1 26 26" stroke-width="3.5" stroke-linecap="round" opacity=".6"/>
+<path class="lg-a" d="M32 6a38 38 0 0 1 38 38" stroke-width="3.5" stroke-linecap="round" opacity=".3" transform="translate(-6 0) scale(.84)"/>
+</svg></div><h3>Pingjagd</h3><p>Sagt direkt, worum es geht: Standort-Pings. Logo: Punkt mit drei auslaufenden Signalbögen, nach oben rechts größer werdend.</p></div>
+<div class="ncard"><div class="nl"><svg class="logo" width="64" height="64" viewBox="0 0 64 64" fill="none" role="img" aria-label="Logo Wildwechsel">
+<circle class="lg-a" cx="25" cy="32" r="18" stroke-width="3.5"/>
+<circle class="lg-d2" cx="39" cy="32" r="18" stroke-width="3.5"/>
+<path class="lg-d" d="M32 17.2a18 18 0 0 1 0 29.6a18 18 0 0 1 0-29.6z" stroke="none" opacity=".9"/>
+</svg></div><h3>Wildwechsel</h3><p>Der Pfad, auf dem Wild wechselt. Logo: zwei überlappende Kreise (Sucher-Radius und Gejagten-Radius), die Schnittmenge leuchtet als „Treffer“.</p></div>
+</div></section><div class="legend"><p><b>Vergleich:</b> A wirkt wie die Daily App (weich, Fläche statt Linie), B wirkt wie ein Spiel-HUD (Linie, Gitter, Glow). Mein Favorit für die Familie der Apps ist A; B könnte als „Taktik-Skin“ später zuschaltbar sein.</p></div></body></html>

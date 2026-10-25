@@ -1,0 +1,8 @@
+node_modules/
+tests/screenshots/
+.env
+.env.*
+supabase/.temp/
+supabase/.branches/
+.DS_Store
+*.log

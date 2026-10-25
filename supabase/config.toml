@@ -1,0 +1,10 @@
+# Minimale Konfiguration für die Supabase CLI (npx supabase ...)
+project_id = "manhunt"
+
+[functions.location]
+# Traccar kann kein Login mitschicken. Die Funktion prüft selbst den geheimen Tracker-Token.
+verify_jwt = false
+
+[functions.tick]
+# Aufruf durch pg_cron (eigenes Secret) oder durch die App (Login wird in der Funktion geprüft).
+verify_jwt = false

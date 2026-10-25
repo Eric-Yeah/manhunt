@@ -1,0 +1,28 @@
+{
+  "name": "manhunt",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Manhunt-App für Freunde: Web App (PWA) + Supabase",
+  "scripts": {
+    "test": "node --test tests/core.test.js tests/server.test.js && node scripts/test-db.mjs",
+    "test:core": "node --test tests/core.test.js tests/server.test.js",
+    "test:db": "node scripts/test-db.mjs",
+    "test:ui": "node tests/ui.smoke.mjs",
+    "test:ui-db": "node scripts/test-db.mjs tests/ui-supabase.test.js",
+    "vendor": "node scripts/vendor.mjs",
+    "build:functions": "node scripts/build-functions.mjs",
+    "dev": "node scripts/serve.mjs"
+  },
+  "devDependencies": {
+    "@geoman-io/leaflet-geoman-free": "2.20.4",
+    "@supabase/supabase-js": "2.118.0",
+    "@turf/turf": "7.4.0",
+    "esbuild": "^0.25.0",
+    "jsqr": "1.4.0",
+    "leaflet": "1.9.4",
+    "pg": "^8.13.0",
+    "playwright": "^1.63.0",
+    "qrcode-generator": "2.0.4"
+  }
+}

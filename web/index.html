@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d141d">
+  <meta name="color-scheme" content="dark light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Manhunt">
+  <meta name="description" content="Manhunt im echten Gelände – Verstecken, suchen, entkommen.">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Manhunt</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">{ "imports": { "@turf/turf": "./vendor/turf.esm.js" } }</script>
+  <script src="vendor/leaflet/leaflet.js" defer></script>
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <div id="app">
+    <noscript><p style="padding:24px">Diese App braucht JavaScript.</p></noscript>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+</body>
+</html>

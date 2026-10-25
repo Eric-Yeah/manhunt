@@ -412,3 +412,19 @@ test('Service Worker kennt alle App-Module (Offline nach dem ersten Besuch)', as
     assert.ok(sw.includes(`'${rel}'`), `${rel} fehlt in sw.js`);
   }
 });
+
+test('Version: version.js, sw.js und package.json stimmen überein, Release Notes sind gepflegt', async () => {
+  const fs = await import('node:fs');
+  const { VERSION, RELEASES, isNewer, releasesSince } = await import('../web/js/version.js');
+  const sw = fs.readFileSync(new URL('../web/sw.js', import.meta.url), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.match(sw, new RegExp(`const VERSION = '${VERSION.replace(/\./g, '\\.')}'`), 'VERSION in sw.js fehlt oder weicht ab');
+  assert.equal(pkg.version, VERSION);
+  assert.equal(RELEASES[0].version, VERSION, 'Oberster Release-Eintrag muss die aktuelle Version sein');
+  for (const r of RELEASES) assert.ok(r.items.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(r.date), r.version);
+  assert.equal(new Set(RELEASES.map((r) => r.version)).size, RELEASES.length);
+  assert.ok(isNewer('0.10.0', '0.9.5') && !isNewer('0.2.0', '0.2.0'));
+  assert.deepEqual(releasesSince(null), []);
+  assert.deepEqual(releasesSince(VERSION), []);
+  assert.equal(releasesSince('0.1.0').length, RELEASES.filter((r) => isNewer(r.version, '0.1.0')).length);
+});

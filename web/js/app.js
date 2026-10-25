@@ -12,6 +12,7 @@ import { playScreen } from './ui/screens/play.js';
 import { resultScreen } from './ui/screens/result.js';
 import { openChat, hasUnread } from './ui/chat.js';
 import { openHelp } from './ui/help.js';
+import { showNewReleases } from './ui/releases.js';
 
 const SCREENS = { start: startScreen, settings: settingsScreen, area: areaScreen, waiting: waitingScreen, play: playScreen, result: resultScreen };
 
@@ -91,6 +92,7 @@ export class App {
     }
     const mode = this.configured ? load('mode', 'supabase') : 'demo';
     await this.useBackend(mode);
+    showNewReleases().catch(() => {});
   }
 
   showMessage(title, text, actions = []) {

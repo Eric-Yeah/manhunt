@@ -194,6 +194,8 @@ Pause/SOS stoppt das Spiel für alle (Countdowns, Pings, Strafen) und erscheint 
 - Grenzen der Spielmechanik: Wer sich lange nicht bewegt, wird von Kreis-Pings mit der Zeit eingegrenzt (jeder Ping verschiebt den Kreis neu). Das ist gewollt, sollte aber allen klar sein. Nach einem Spielabend die **Tracker-Kennung neu erzeugen** (Hilfe-Screen); das JSON-Format von Traccar ist dem URL-Format vorzuziehen, weil die Kennung dann nicht in Logs steht.
 - Wenn die App öffentlicher wird: in Supabase unter Authentication → Attack Protection ein Captcha (Turnstile) für anonyme Anmeldungen einschalten.
 
+- Updates: Jede Version steht mit Release Notes in `web/js/version.js`. Nach dem Deploy erkennt der Service Worker die neue Version (beim Öffnen, beim Zurückkehren in die App und alle 10 Minuten), die App lädt sich selbst neu und zeigt einmalig die Neuerungen. Alle Notes sind über „Neuigkeiten“ auf der Startseite abrufbar.
+
 Die Sicherheitsregeln sind mit automatischen Tests abgedeckt (siehe 7).
 
 **Falls die App irgendwann öffentlicher werden soll** (nicht nur ihr Freunde), bräuchtest du zusätzlich:

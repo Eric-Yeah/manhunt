@@ -23,6 +23,7 @@ Private Manhunt-Web-App (PWA) für Eric und Freunde. Sprache der App, der Texte 
 - `normalizeSettings()` in `engine.js` und `public.normalize_settings()` in SQL müssen zusammenpassen.
 - Keine Secrets ins Repo. Publishable/anon-Key darf ins Frontend, Secret/service_role-Key nie.
 - Alles muss im Supabase Free Tier und kostenlos bleiben.
+- **Jedes Update bekommt Release Notes:** `VERSION` in `web/js/version.js`, `web/sw.js` und `package.json` erhöhen und oben in `RELEASES` (`version.js`) einen Eintrag mit kurzen, spielerverständlichen Sätzen ergänzen. Der neue Service Worker lädt die App dann von selbst neu, danach zeigt sie die Neuerungen einmalig. `npm run test:core` prüft, dass alles zusammenpasst. Neue JS-Dateien müssen zusätzlich in `CORE` in `web/sw.js`.
 
 ## Befehle
 ```

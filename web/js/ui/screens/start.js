@@ -4,6 +4,8 @@ import { icon, logoSvg } from '../../util/icons.js';
 import { dateTime, minutes } from '../../util/format.js';
 import { privacyBody } from '../components.js';
 import { load } from '../../util/storage.js';
+import { showAllReleases } from '../releases.js';
+import { VERSION } from '../../version.js';
 
 export function startScreen(ctx) {
   const { cfg } = ctx;
@@ -101,6 +103,7 @@ export function startScreen(ctx) {
     h('div', { class: 'stack', style: { gap: '2px', alignItems: 'center' } },
       h('button', { class: 'linkish', onclick: () => ctx.openHelp() }, 'Tracking im Hintergrund einrichten'),
       h('button', { class: 'linkish', onclick: () => modal({ title: 'Wer sieht was?', body: privacyBody({}) }) }, 'Wer sieht was? (Datenschutz)'),
+      h('button', { class: 'linkish', onclick: () => showAllReleases() }, `Neuigkeiten (Version ${VERSION})`),
       h('button', { class: 'linkish', onclick: async () => {
         if (!(await confirmDialog('Meine Daten löschen?', 'Löscht deine Spiele, Routen, gespeicherten Gebiete und deine Tracker-Kennung vom Server. Laufende Spiele verlässt du.', 'Löschen', true))) return;
         try {

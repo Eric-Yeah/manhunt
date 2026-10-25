@@ -1,7 +1,9 @@
 // Service Worker: App-Dateien offline verfügbar machen.
 // Eigene Dateien: erst Netz, dann Cache (Updates kommen sofort an).
 // Bibliotheken (vendor/): erst Cache. Supabase, Edge Functions und Kartenkacheln: nie cachen.
-const CACHE = 'manhunt-v2';
+// Bei jedem Update VERSION erhöhen (gleich wie in js/version.js): Nur so erkennt der Browser den neuen Worker.
+const VERSION = '0.2.0';
+const CACHE = `manhunt-${VERSION}`;
 // Alle Module stehen hier, damit die App nach dem ersten Besuch auch offline startet
 // (tests/core.test.js prüft, dass keine Datei fehlt).
 const CORE = [
@@ -34,6 +36,8 @@ const CORE = [
   'js/ui/chat.js',
   'js/ui/components.js',
   'js/ui/help.js',
+  'js/ui/releases.js',
+  'js/version.js',
   'js/ui/map.js',
   'js/ui/scanner.js',
   'js/ui/screens/area.js',

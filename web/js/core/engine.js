@@ -40,7 +40,7 @@ export const SETTING_LIMITS = Object.freeze({
   shrink_every_s: [60, 3600],
   shrink_percent: [5, 50],
   joker_cooldown_s: [60, 3600],
-  retention_h: [1, 168],
+  retention_h: [1, 72],
 });
 
 const ENUMS = {
@@ -53,8 +53,8 @@ const BOOLS = ['shrink_enabled', 'joker_skip', 'joker_double', 'joker_decoy', 's
 export function normalizeSettings(input = {}) {
   const s = { ...DEFAULT_SETTINGS };
   for (const [k, [min, max]] of Object.entries(SETTING_LIMITS)) {
-    const v = Number(input?.[k]);
-    if (Number.isFinite(v)) s[k] = Math.round(Math.min(max, Math.max(min, v)));
+    const v = input?.[k];
+    if (typeof v === 'number' && Number.isFinite(v)) s[k] = Math.round(Math.min(max, Math.max(min, v)));
   }
   for (const [k, values] of Object.entries(ENUMS)) if (values.includes(input?.[k])) s[k] = input[k];
   for (const k of BOOLS) if (typeof input?.[k] === 'boolean') s[k] = input[k];
@@ -230,6 +230,7 @@ export function planTick(ctx, now, rng = Math.random) {
   for (const h of hiders) {
     const pv = ctx.privs[h.id];
     if (!pv?.oob_deadline || now < pv.oob_deadline) continue;
+    if (s.boundary_penalty !== 'eliminate' && !huntStarted) continue; // Extra-Ping erst ab Jagdbeginn
     if (s.boundary_penalty === 'eliminate') {
       eliminated.add(h.id);
       plan.penalties.push({ player_id: h.id, type: 'eliminate' });

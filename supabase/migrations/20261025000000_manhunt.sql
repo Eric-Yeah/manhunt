@@ -213,7 +213,7 @@ declare
     "ping_interval_s": [60, 3600], "ping_radius_m": [50, 2000], "headstart_s": [0, 3600],
     "duration_s": [300, 21600], "boundary_warn_s": [5, 300], "boundary_tolerance_m": [0, 100],
     "accuracy_max_m": [10, 200], "shrink_every_s": [60, 3600], "shrink_percent": [5, 50],
-    "joker_cooldown_s": [60, 3600], "retention_h": [1, 168] }'::jsonb;
+    "joker_cooldown_s": [60, 3600], "retention_h": [1, 72] }'::jsonb;
   k text;
   v numeric;
 begin
@@ -234,14 +234,33 @@ begin
   return r;
 end $$;
 
+-- Prüft Typ, Ringe (geschlossen, 4 bis 500 Punkte) und dass alle Koordinaten Zahlen im gültigen Bereich sind.
 create or replace function public.is_polygon_feature(f jsonb) returns boolean
-language sql immutable set search_path = '' as $$
-  select f is not null and jsonb_typeof(f) = 'object'
-    and jsonb_typeof(f -> 'geometry') = 'object'
-    and f -> 'geometry' ->> 'type' = 'Polygon'
-    and jsonb_typeof(f -> 'geometry' -> 'coordinates') = 'array'
-    and jsonb_array_length(f -> 'geometry' -> 'coordinates' -> 0) between 4 and 500
-$$;
+language plpgsql immutable set search_path = '' as $$
+declare
+  coords jsonb;
+  ring jsonb;
+  pt jsonb;
+  n int;
+begin
+  if f is null or jsonb_typeof(f) <> 'object' or jsonb_typeof(f -> 'geometry') is distinct from 'object'
+     or f -> 'geometry' ->> 'type' is distinct from 'Polygon' then return false; end if;
+  coords := f -> 'geometry' -> 'coordinates';
+  if jsonb_typeof(coords) is distinct from 'array' or jsonb_array_length(coords) not between 1 and 21 then return false; end if;
+  for ring in select * from jsonb_array_elements(coords) loop
+    if jsonb_typeof(ring) <> 'array' then return false; end if;
+    n := jsonb_array_length(ring);
+    if n not between 4 and 500 then return false; end if;
+    for pt in select * from jsonb_array_elements(ring) loop
+      if jsonb_typeof(pt) <> 'array' or jsonb_array_length(pt) < 2
+         or jsonb_typeof(pt -> 0) <> 'number' or jsonb_typeof(pt -> 1) <> 'number' then return false; end if;
+      if abs((pt ->> 0)::numeric) > 180 or abs((pt ->> 1)::numeric) > 90 then return false; end if;
+    end loop;
+    if (ring -> 0 ->> 0)::numeric <> (ring -> (n - 1) ->> 0)::numeric
+       or (ring -> 0 ->> 1)::numeric <> (ring -> (n - 1) ->> 1)::numeric then return false; end if;
+  end loop;
+  return true;
+end $$;
 
 -- ---------- Rechte-Helfer (für RLS) ----------
 
@@ -347,12 +366,41 @@ drop policy if exists saved_areas_own on public.saved_areas;
 create policy saved_areas_own on public.saved_areas for all to authenticated
   using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
+-- Gespeicherte Gebiete: höchstens 20 je Nutzer, Zeitstempel kann der Client nicht setzen.
+create or replace function public.saved_areas_guard() returns trigger
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    if (select count(*) from public.saved_areas where owner_id = new.owner_id) >= 20 then
+      raise exception 'Du kannst höchstens 20 Gebiete speichern.';
+    end if;
+    new.created_at := now();
+  else
+    new.created_at := old.created_at;
+    new.owner_id := old.owner_id;
+  end if;
+  if not public.is_polygon_feature(new.area) then raise exception 'Ungültiges Spielgebiet.'; end if;
+  if jsonb_typeof(new.exclusions) <> 'array' or jsonb_array_length(new.exclusions) > 20 then
+    raise exception 'Höchstens 20 Sperrzonen.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists saved_areas_guard on public.saved_areas;
+create trigger saved_areas_guard before insert or update on public.saved_areas
+  for each row execute function public.saved_areas_guard();
+
 -- Clients dürfen nur lesen (Ausnahme: eigene gespeicherte Gebiete).
 revoke all on public.games, public.players, public.player_private, public.user_trackers, public.locations,
   public.pings, public.ping_secrets, public.messages, public.saved_areas from anon, authenticated;
 grant select on public.games, public.players, public.player_private, public.user_trackers, public.locations,
   public.pings, public.ping_secrets, public.messages to authenticated;
 grant select, insert, update, delete on public.saved_areas to authenticated;
+revoke all on all sequences in schema public from anon, authenticated;
+
+-- Realtime liefert so bei UPDATE/DELETE vollständige Zeilen (große jsonb-Spalten, Filter bei DELETE).
+alter table public.games replica identity full;
+alter table public.players replica identity full;
 
 -- ---------- Interne Spiel-Helfer ----------
 
@@ -365,7 +413,7 @@ end $$;
 
 create or replace function public.clean_name(p_name text) returns text
 language plpgsql immutable set search_path = '' as $$
-declare n text := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
+declare n text := btrim(regexp_replace(regexp_replace(coalesce(p_name, ''), '[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]', '', 'g'), '\s+', ' ', 'g'));
 begin
   if char_length(n) < 1 then raise exception 'Bitte gib einen Namen ein.'; end if;
   return left(n, 24);
@@ -427,6 +475,12 @@ begin
   if public.game_status(p_game) in ('running', 'paused')
      and not exists (select 1 from public.players where game_id = p_game and role = 'hider' and status = 'active') then
     perform public.finish_game(p_game, 'hunters', 'all_found');
+    return true;
+  end if;
+  -- Alle Sucher sind gegangen: Die Gejagten gewinnen.
+  if public.game_status(p_game) in ('running', 'paused')
+     and not exists (select 1 from public.players where game_id = p_game and role = 'hunter' and status = 'active') then
+    perform public.finish_game(p_game, 'hiders', 'no_hunters');
     return true;
   end if;
   return false;
@@ -540,7 +594,7 @@ declare
   n text := public.clean_name(p_name);
   had_left boolean := false;
 begin
-  select * into g from public.games where code = c and status <> 'ended' order by created_at desc limit 1;
+  select * into g from public.games where code = c and status <> 'ended' order by created_at desc limit 1 for update;
   if not found then raise exception 'Kein offenes Spiel mit diesem Code gefunden.'; end if;
   select * into p from public.players where game_id = g.id and user_id = uid;
   if found then
@@ -599,7 +653,8 @@ begin
       raise exception 'Ungültige Zonen-Stufen.';
     end if;
     for e in select * from jsonb_array_elements(st) loop
-      if jsonb_typeof(e -> 'at_s') <> 'number' or (e ->> 'at_s')::int <= prev
+      if jsonb_typeof(e -> 'at_s') is distinct from 'number' or (e ->> 'at_s')::numeric <> floor((e ->> 'at_s')::numeric)
+         or (e ->> 'at_s')::numeric not between 0 and 86400 or (e ->> 'at_s')::int <= prev
          or not public.is_polygon_feature(jsonb_build_object('geometry', e -> 'geometry')) then
         raise exception 'Ungültige Zonen-Stufen.';
       end if;
@@ -724,7 +779,7 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare
   me public.players := public.my_player(p_game);
   g public.games;
-  reason text := left(btrim(coalesce(p_reason, 'Pause')), 120);
+  reason text := left(btrim(regexp_replace(coalesce(p_reason, 'Pause'), '[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]', '', 'g')), 120);
 begin
   select * into g from public.games where id = p_game for update;
   if g.status <> 'running' then raise exception 'Das Spiel läuft gerade nicht.'; end if;
@@ -901,6 +956,8 @@ begin
             l.player_id, coalesce(l.s_lat, l.lat) as lat, coalesce(l.s_lon, l.lon) as lon, l.recorded_at
           from public.locations l
           where l.game_id = p_game
+            and (g.end_reason is distinct from 'aborted' or l.player_id = me.id
+                 or exists (select 1 from public.players q where q.id = l.player_id and q.role = me.role))
           order by l.player_id, floor(extract(epoch from l.recorded_at) / 10), l.recorded_at
         ) d
         group by d.player_id
@@ -1162,6 +1219,19 @@ begin
   return n;
 end $$;
 
+-- Löscht alle Daten des eigenen Kontos: Spieler, Standorte, Pings, gespeicherte Gebiete, Tracker-Kennung.
+create or replace function public.delete_my_data() returns void
+language plpgsql volatile security definer set search_path = '' as $$
+declare uid uuid := public.require_uid();
+begin
+  perform public.leave_other_games(uid);
+  update public.messages set sender_name = 'Gelöscht'
+    where player_id in (select id from public.players where user_id = uid);
+  delete from public.players where user_id = uid;
+  delete from public.saved_areas where owner_id = uid;
+  delete from public.user_trackers where user_id = uid;
+end $$;
+
 -- ---------- Ausführungsrechte ----------
 
 revoke execute on all functions in schema public from public, anon, authenticated;
@@ -1175,7 +1245,7 @@ grant execute on function
   public.set_ready(uuid, boolean), public.kick_player(uuid), public.start_game(uuid), public.mark_found(uuid),
   public.pause_game(uuid, text), public.resume_game(uuid), public.end_game(uuid), public.leave_game(uuid),
   public.send_message(uuid, text, text, boolean), public.use_joker(uuid, text), public.cancel_joker(uuid),
-  public.rematch(uuid), public.regenerate_tracker(), public.my_tracker(), public.get_replay(uuid)
+  public.rematch(uuid), public.regenerate_tracker(), public.my_tracker(), public.get_replay(uuid), public.delete_my_data()
 to authenticated;
 
 grant execute on all functions in schema public to service_role;

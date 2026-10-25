@@ -187,14 +187,18 @@ Pause/SOS stoppt das Spiel für alle (Countdowns, Pings, Strafen) und erscheint 
 - Apps dürfen **keine Tabelle direkt ändern**. Jede Änderung läuft über geprüfte Datenbank-Funktionen. Server-Funktionen (`svc_…`) kann nur die Edge Function mit Secret Key aufrufen.
 - Chat: Kanäle `hunters`, `hiders`, `all`, Zugriff per RLS (nicht nur in der App ausgeblendet). Wer im Warteraum die Seite wechselt, verliert sofort den Zugang zum alten Team-Chat. Nach Spielende lesen alle alles.
 - Tracker-Token: 64 Hex-Zeichen (≈ 244 Bit Zufall, nicht erratbar), nur für den Besitzer lesbar, neu erzeugbar. Rate-Limit 1 Meldung/Sekunde, Prüfung von Koordinaten, Zeitstempel (max. 5 min alt) und Genauigkeit (Standard 50 m), Kalman-Filter gegen GPS-Ausreißer.
-- Standorte werden nur während laufender Spiele gespeichert. **Automatische Löschung** von Standorten, Pings und Chat nach Spielende (Standard 24 h, einstellbar 6/24/72 h). Verlassene Warteräume nach 24 h.
+- Standorte werden nur während laufender Spiele gespeichert. **Automatische Löschung** von Standorten, Pings und Chat nach Spielende (Standard 24 h, einstellbar 6/24/72 h, serverseitig höchstens 72 h). Verlassene Warteräume nach 24 h.
 - Keine Werbung, keine Analyse-Tools, keine fremden CDNs: Alle Bibliotheken liegen in `web/vendor/`. Einzige Drittanfrage: Kartenkacheln von OpenStreetMap.
+
+- Eigene Daten löschen: Startseite → „Meine Daten löschen“ entfernt Spiele, Routen, gespeicherte Gebiete und die Tracker-Kennung vom Server.
+- Grenzen der Spielmechanik: Wer sich lange nicht bewegt, wird von Kreis-Pings mit der Zeit eingegrenzt (jeder Ping verschiebt den Kreis neu). Das ist gewollt, sollte aber allen klar sein. Nach einem Spielabend die **Tracker-Kennung neu erzeugen** (Hilfe-Screen); das JSON-Format von Traccar ist dem URL-Format vorzuziehen, weil die Kennung dann nicht in Logs steht.
+- Wenn die App öffentlicher wird: in Supabase unter Authentication → Attack Protection ein Captcha (Turnstile) für anonyme Anmeldungen einschalten.
 
 Die Sicherheitsregeln sind mit automatischen Tests abgedeckt (siehe 7).
 
 **Falls die App irgendwann öffentlicher werden soll** (nicht nur ihr Freunde), bräuchtest du zusätzlich:
 - eine **Datenschutzerklärung** (Standortdaten sind besonders sensibel) und ein **Impressum**,
-- eine aktive **Einwilligung** vor der ersten Ortung (z. B. Häkchen mit Erklärung) und eine Möglichkeit, eigene Daten zu löschen,
+- eine aktive **Einwilligung** vor der ersten Ortung (z. B. Häkchen mit Erklärung) (Löschen der eigenen Daten gibt es bereits in der App),
 - Regeln für **Minderjährige**: In Deutschland brauchen unter 16-Jährige für solche Datenverarbeitung die Zustimmung der Eltern,
 - einen **Auftragsverarbeitungsvertrag (DPA)** mit Supabase,
 - eigene Kartenkacheln oder einen Kachel-Anbieter (die OSM-Server sind nicht für viel Verkehr gedacht),

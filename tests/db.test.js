@@ -309,7 +309,7 @@ test('Gespeicherte Gebiete gehören nur dem Ersteller', async () => {
   await db.select(U.eric, "insert into public.saved_areas (name, area) values ('Stadtpark', $1)", [circleArea(LAT, LON, 600)]);
   assert.equal((await db.select(U.eric, 'select * from public.saved_areas')).length, 1);
   assert.equal((await db.select(U.mia, 'select * from public.saved_areas')).length, 0);
-  await assert.rejects(db.select(U.mia, "insert into public.saved_areas (owner_id, name, area) values ($1, 'x', '{}')", [U.eric]), /row-level security/);
+  await assert.rejects(db.select(U.mia, "insert into public.saved_areas (owner_id, name, area) values ($1, 'x', $2)", [U.eric, circleArea(LAT, LON, 300)]), /row-level security/);
 });
 
 test('Verlassen: Host-Wechsel im Warteraum, leeres Spiel wird gelöscht', async () => {

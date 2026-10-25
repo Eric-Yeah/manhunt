@@ -253,7 +253,7 @@ var SETTING_LIMITS = Object.freeze({
   shrink_every_s: [60, 3600],
   shrink_percent: [5, 50],
   joker_cooldown_s: [60, 3600],
-  retention_h: [1, 168]
+  retention_h: [1, 72]
 });
 var ENUMS = {
   ping_mode: ["exact", "circle", "direction"],
@@ -264,8 +264,8 @@ var BOOLS = ["shrink_enabled", "joker_skip", "joker_double", "joker_decoy", "sho
 function normalizeSettings(input = {}) {
   const s = { ...DEFAULT_SETTINGS };
   for (const [k, [min, max]] of Object.entries(SETTING_LIMITS)) {
-    const v = Number(input?.[k]);
-    if (Number.isFinite(v)) s[k] = Math.round(Math.min(max, Math.max(min, v)));
+    const v = input?.[k];
+    if (typeof v === "number" && Number.isFinite(v)) s[k] = Math.round(Math.min(max, Math.max(min, v)));
   }
   for (const [k, values] of Object.entries(ENUMS)) if (values.includes(input?.[k])) s[k] = input[k];
   for (const k of BOOLS) if (typeof input?.[k] === "boolean") s[k] = input[k];

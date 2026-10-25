@@ -384,3 +384,31 @@ test('Zufallspunkt liegt im Gebiet', () => {
     assert.ok(distanceToBoundaryM(p, zone) >= 0);
   }
 });
+
+test('Einstellungen: Nicht-Zahlen fallen auf den Standard zurück (wie in SQL)', () => {
+  for (const bad of [null, true, '120', '', []]) assert.equal(normalizeSettings({ ping_interval_s: bad }).ping_interval_s, DEFAULT_SETTINGS.ping_interval_s);
+  assert.equal(normalizeSettings({ retention_h: 500 }).retention_h, 72);
+});
+
+test('Extra-Ping-Strafe wird erst ab Jagdbeginn verhängt', () => {
+  const now = 1_000_000_000_000;
+  const mk = (huntStartsAt) => ({
+    game: { id: 'g', status: 'running', settings: { boundary_penalty: 'extra_ping' }, area: null, zone_stages: [], exclusions: [], started_at: now - 5000, hunt_starts_at: huntStartsAt, next_ping_at: null, ends_at: now + 3_600_000, ping_seq: 0, hunt_announced: true },
+    players: [{ id: 'h', name: 'H', role: 'hider', status: 'active' }, { id: 'k', name: 'K', role: 'hunter', status: 'active' }],
+    privs: { h: { oob_deadline: now - 1, lat: null }, k: {} },
+  });
+  assert.equal(planTick(mk(now + 60_000), now, seeded()).penalties.length, 0);
+  assert.equal(planTick(mk(now - 60_000), now, seeded()).penalties.length, 1);
+});
+
+test('Service Worker kennt alle App-Module (Offline nach dem ersten Besuch)', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const sw = fs.readFileSync(new URL('../web/sw.js', import.meta.url), 'utf8');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const base = new URL('../web/', import.meta.url).pathname;
+  for (const f of walk(path.join(base, 'js')).filter((x) => x.endsWith('.js'))) {
+    const rel = path.relative(base, f);
+    assert.ok(sw.includes(`'${rel}'`), `${rel} fehlt in sw.js`);
+  }
+});

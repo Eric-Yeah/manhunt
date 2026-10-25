@@ -20,6 +20,7 @@ export function ago(ms) {
 
 export function minutes(s) {
   if (s < 60) return `${s} s`;
+  if (s % 60 !== 0 && s < 600) return `${Math.floor(s / 60)} min ${s % 60} s`;
   const m = Math.round(s / 60);
   return m >= 60 && m % 60 === 0 ? `${m / 60} h` : `${m} min`;
 }

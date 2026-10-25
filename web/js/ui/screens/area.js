@@ -143,6 +143,7 @@ export function areaScreen(ctx) {
     for (const ev of ['pm:edit', 'pm:vertexremoved', 'pm:markerdragend', 'pm:vertexadded']) layer.on(ev, changed);
   }
   function startDraw(kind) {
+    if (!map) return; // Karte lädt noch
     if (drawing) map.pm.disableDraw();
     drawing = kind;
     vertexCount = 0;
@@ -325,7 +326,7 @@ export function areaScreen(ctx) {
         circle.center = { lat: p.lat, lon: p.lon };
         circle.fromUser = true;
         syncCircle();
-        map.setView([p.lat, p.lon]);
+        map?.setView([p.lat, p.lon]);
         changed();
       });
       parts.push(

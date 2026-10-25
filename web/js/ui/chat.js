@@ -79,7 +79,7 @@ export function openChat(ctx, onClose) {
 
   async function send() {
     const body = input.value.trim();
-    if (!body) return;
+    if (!body || sendBtn.disabled) return;
     sendBtn.disabled = true;
     try {
       await ctx.backend.sendMessage(channel, body, announce && channel === 'all');
@@ -137,12 +137,13 @@ export function openChat(ctx, onClose) {
   }
 
   function close() {
+    document.removeEventListener('keydown', onKey);
     wrap.remove();
     unsub();
     onClose?.();
   }
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey, { once: true });
+  document.addEventListener('keydown', onKey);
 
   const unsub = ctx.backend.on((s) => {
     snap = s;

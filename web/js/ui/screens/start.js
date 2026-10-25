@@ -1,5 +1,5 @@
 // Screen 1: Start / Lobby – Spiel erstellen, Code eingeben, Hell/Dunkel.
-import { h, append, busy, toast, modal } from '../../util/dom.js';
+import { h, append, busy, toast, modal, confirmDialog } from '../../util/dom.js';
 import { icon, logoSvg } from '../../util/icons.js';
 import { dateTime, minutes } from '../../util/format.js';
 import { privacyBody } from '../components.js';
@@ -101,14 +101,21 @@ export function startScreen(ctx) {
     h('div', { class: 'stack', style: { gap: '2px', alignItems: 'center' } },
       h('button', { class: 'linkish', onclick: () => ctx.openHelp() }, 'Tracking im Hintergrund einrichten'),
       h('button', { class: 'linkish', onclick: () => modal({ title: 'Wer sieht was?', body: privacyBody({}) }) }, 'Wer sieht was? (Datenschutz)'),
+      h('button', { class: 'linkish', onclick: async () => {
+        if (!(await confirmDialog('Meine Daten löschen?', 'Löscht deine Spiele, Routen, gespeicherten Gebiete und deine Tracker-Kennung vom Server. Laufende Spiele verlässt du.', 'Löschen', true))) return;
+        try {
+          await ctx.backend.deleteMyData();
+          toast('Deine Daten wurden gelöscht.');
+        } catch (e) { toast(e.message, 'bad'); }
+      } }, 'Meine Daten löschen'),
       ctx.configured && !isDemo ? h('button', { class: 'linkish', onclick: () => ctx.switchBackend('demo') }, 'Demo mit simulierten Mitspielern') : null,
     ),
   ]);
   paintCode();
-  if (ctx.pendingJoinCode && code.length === 6) {
+  if (ctx.pendingJoinCode) {
+    // Einladungslink: Code nur vorbelegen. Beitreten (und damit Standort teilen) bestätigt man selbst.
     ctx.pendingJoinCode = null;
-    if (nameInput.value.trim()) setTimeout(() => joinBtn.click(), 50);
-    else toast('Gib deinen Namen ein und tippe auf „Beitreten“.');
+    if (code.length === 6) toast(nameInput.value.trim() ? 'Tippe auf „Beitreten“, um dem Spiel beizutreten.' : 'Gib deinen Namen ein und tippe auf „Beitreten“.');
   }
   return { el, update() {}, destroy() {} };
 }

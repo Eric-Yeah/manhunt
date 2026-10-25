@@ -94,6 +94,7 @@ export class SupabaseBackend extends BaseBackend {
   async reload() {
     const id = this.gameId;
     if (!id) return;
+    const gen = (this.reloadGen = (this.reloadGen || 0) + 1);
     const q = (t) => this.sb.from(t);
     const [g, pl, pv, pi, se, ms, lo] = await Promise.all([
       q('games').select('*').eq('id', id).maybeSingle(),
@@ -104,7 +105,7 @@ export class SupabaseBackend extends BaseBackend {
       q('messages').select('*').eq('game_id', id).order('id', { ascending: false }).limit(300),
       q('locations').select('player_id, lat, lon, s_lat, s_lon, accuracy, recorded_at').eq('game_id', id).order('id', { ascending: false }).limit(300),
     ]);
-    if (this.gameId !== id) return;
+    if (this.gameId !== id || gen !== this.reloadGen) return; // veraltete Antwort verwerfen
     for (const r of [g, pl, pv, pi, se, ms, lo]) if (r.error) throw new Error(friendly(r.error));
     if (!g.data || !pl.data.some((p) => p.user_id === this.userId && p.status !== 'left')) {
       // Spiel gelöscht oder man wurde entfernt
@@ -134,7 +135,7 @@ export class SupabaseBackend extends BaseBackend {
     });
     on('games', `id=eq.${id}`, (p) => {
       if (p.eventType === 'DELETE') return this.reload().catch(() => {});
-      this.snap.game = p.new;
+      this.snap.game = { ...this.snap.game, ...p.new };
       this.emit();
     });
     on('players', `game_id=eq.${id}`, (p) => {
@@ -231,6 +232,11 @@ export class SupabaseBackend extends BaseBackend {
     const t = await this.call('my_tracker', {});
     this.tracker = t;
     return { ...t, url: this.locationUrl };
+  }
+  async deleteMyData() {
+    await this.call('delete_my_data', {});
+    this.closeGame(true);
+    this.tracker = null;
   }
   async regenerateTracker() {
     const token = await this.call('regenerate_tracker', {});

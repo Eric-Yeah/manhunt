@@ -105,7 +105,8 @@ export function privacyBody(settings) {
       li('Gejagte sehen die Sucher nicht.'),
       li('Der Server speichert Positionen nur, während ein Spiel läuft. Im Warteraum wird nur vermerkt, dass ein Signal ankam.'),
       li(`Standorte, Pings und Chat werden ${s.retention_h} h nach Spielende automatisch gelöscht. Nach dem Spiel sehen alle Mitspieler die Routen als Wiederholung.`),
-      li('Keine Werbung, kein Tracking durch Dritte. Die Kartenbilder lädt dein Handy von OpenStreetMap.'),
+      li('Außerdem gespeichert: gespeicherte Spielgebiete (365 Tage) und deine Tracker-Kennung für Traccar. Auf deinem Handy liegen Name, Anmeldung und Einstellungen. „Meine Daten löschen“ auf der Startseite entfernt alles auf dem Server.'),
+      li('Keine Werbung, kein Tracking durch Dritte. Die Kartenbilder lädt dein Handy von OpenStreetMap (die sehen deine IP-Adresse und den Kartenausschnitt).'),
       li('Schalte Traccar nach dem Spiel aus. Der Server ignoriert Meldungen außerhalb eines Spiels.'),
     ));
 }

@@ -55,7 +55,7 @@ try {
   run(initdb, ['-D', data, '-U', 'postgres', '--auth=trust', '-E', 'UTF8', '--locale=C']);
   run(pgctl, ['-D', data, '-l', path.join(dir, 'log.txt'), '-w', '-o', `-p ${port} -k ${dir} -c listen_addresses=127.0.0.1 -c fsync=off`, 'start']);
   const env = { ...process.env, PGHOST: '127.0.0.1', PGPORT: String(port), PGUSER: 'postgres', PGDATABASE: 'postgres' };
-  const files = process.argv.slice(2).length ? process.argv.slice(2) : ['tests/db.test.js', 'tests/e2e.test.js', 'tests/deno.test.js'];
+  const files = process.argv.slice(2).length ? process.argv.slice(2) : ['tests/db.test.js', 'tests/hardening.test.js', 'tests/e2e.test.js', 'tests/deno.test.js'];
   const t = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...files], { cwd: root, env, stdio: 'inherit' });
   code = t.status ?? 1;
 } finally {

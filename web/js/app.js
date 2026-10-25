@@ -165,7 +165,8 @@ export class App {
       }
       const interval = this.backend.mode === 'demo' ? 2000 : CONFIG.WEB_LOCATION_INTERVAL_S * 1000;
       this.sendFix ||= (fix) => {
-        save('lastPos', { lat: fix.lat, lon: fix.lon });
+        // Echte Positionen bleiben nicht auf dem Gerät liegen (nur der Demo-Modus merkt sich seine simulierte).
+        if (this.backend?.mode === 'demo') save('lastPos', { lat: fix.lat, lon: fix.lon });
         return this.backend?.sendLocation(fix);
       };
       if (this.loc.sender !== this.sendFix || this.loc.intervalMs !== interval) this.loc.setSender(this.sendFix, interval);

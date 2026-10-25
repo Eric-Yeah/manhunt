@@ -25,9 +25,15 @@ export async function handleTick(req, { rpc, env, getUserId, now = Date.now, rng
   const games = await rpc('svc_due_games', { p_user: userId });
   const results = [];
   for (const ctx of games || []) {
-    const plan = planTick(ctx, now(), rng);
-    if (isPlanEmpty(plan)) continue;
-    results.push({ game_id: ctx.game.id, ...(await rpc('svc_apply_tick', { p: plan })) });
+    // Ein defektes Spiel darf die anderen nicht blockieren.
+    try {
+      const plan = planTick(ctx, now(), rng);
+      if (isPlanEmpty(plan)) continue;
+      results.push({ game_id: ctx.game.id, ...(await rpc('svc_apply_tick', { p: plan })) });
+    } catch (err) {
+      console.error('tick: Spiel übersprungen', ctx?.game?.id, err?.message);
+      results.push({ game_id: ctx?.game?.id, ok: false, error: 'Fehler beim Verarbeiten' });
+    }
   }
   return json({ ok: true, due: (games || []).length, results });
 }

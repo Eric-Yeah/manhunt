@@ -72,3 +72,18 @@ test('Tick ohne Berechtigung', async () => {
   assert.equal((await handleTick(new Request('https://x/tick', { method: 'POST', headers: { 'x-tick-secret': 'abc' } }), noSecret)).status, 401);
   assert.equal(safeEqual('a', 'ab'), false);
 });
+
+test('Tick: ein defektes Spiel blockiert die anderen nicht', async () => {
+  const now = Date.now();
+  const bad = { game: { id: 'bad', status: 'running', settings: {}, zone_stages: [], exclusions: [], hunt_starts_at: now - 1000, next_ping_at: now - 500, ends_at: now + 3_600_000 }, players: null, privs: null }; // wirft in planTick
+  const ended = { game: { id: 'ok', status: 'running', settings: {}, area: null, zone_stages: [], exclusions: [], hunt_starts_at: now - 10_000, next_ping_at: null, ends_at: now - 1000, ping_seq: 0 }, players: [], privs: {} };
+  const applied = [];
+  const rpc = async (fn, args) => {
+    if (fn === 'svc_due_games') return [bad, ended];
+    applied.push(args.p.game_id);
+    return { ok: true };
+  };
+  const r = await handleTick(new Request('https://x/tick', { method: 'POST', headers: { 'x-tick-secret': 'abc' } }), { rpc, env: { TICK_SECRET: 'abc' }, getUserId: async () => null });
+  assert.equal(r.status, 200);
+  assert.deepEqual(applied, ['ok']);
+});

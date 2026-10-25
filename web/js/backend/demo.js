@@ -380,6 +380,10 @@ export class DemoBackend extends BaseBackend {
     return 'demo';
   }
 
+  async deleteMyData() {
+    save('demoAreas', []);
+  }
+
   async listSavedAreas() {
     return load('demoAreas', []);
   }

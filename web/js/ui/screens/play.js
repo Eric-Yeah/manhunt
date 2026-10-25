@@ -176,7 +176,8 @@ export function playScreen(ctx) {
         } else if (p.mode === 'direction') {
           const ref = { lat: p.ref_lat, lon: p.ref_lon };
           const half = (p.sector_deg || 45) / 2;
-          const span = p.distance_m <= 50 ? [0, 100] : [Math.max(0, p.distance_m * 0.75), p.distance_m * 1.25 + 50];
+          // Doppelter Kreis rundet grob: "100" steht für alles unter 200 m.
+          const span = p.distance_m <= 50 ? [0, 100] : p.joker === 'double' && p.distance_m <= 100 ? [0, 200] : [Math.max(0, p.distance_m * 0.75), p.distance_m * 1.25 + 50];
           const band = bandSector(ref, span[0], span[1], p.bearing_deg - half, p.bearing_deg + half);
           polygonLayer(band.geometry, cls).addTo(pingG);
           if (latest) {
@@ -339,12 +340,12 @@ export function playScreen(ctx) {
     const used = Object.values(pv?.joker_used || {}).map(ts).filter(Boolean);
     const readyAt = used.length ? Math.max(...used) + s.joker_cooldown_s * 1000 : 0;
     const cooling = readyAt > ctx.now();
-    const jokerKey = `${me.status}|${pv?.joker_pending}|${readyAt}|${cooling}|${g.status}|${cooling ? Math.ceil((readyAt - ctx.now()) / 1000) : 0}`;
+    const jokerKey = `${me.status}|${pv?.joker_pending}|${readyAt}|${cooling}|${g.status}`;
     if (keys.joker === jokerKey) {
-      /* unverändert */
+      if (keys.jokerSub && cooling && !pv?.joker_pending) keys.jokerSub.textContent = `wieder in ${mmss(readyAt - ctx.now())}`;
     } else if ((keys.joker = jokerKey) && isHider && me.status === 'active' && enabled.length) {
       setChildren(jokerBox,
-        h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Joker'), h('span', { class: 'sub' }, pv?.joker_pending ? 'Aktiv für den nächsten Ping' : cooling ? `wieder in ${mmss(readyAt - ctx.now())}` : 'bereit')),
+        h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Joker'), (keys.jokerSub = h('span', { class: 'sub' }, pv?.joker_pending ? 'Aktiv für den nächsten Ping' : cooling ? `wieder in ${mmss(readyAt - ctx.now())}` : 'bereit'))),
         h('div', { class: 'joker-row' }, enabled.map(([type, j]) => {
           const on = pv?.joker_pending === type;
           const b = h('button', { class: `joker${on ? ' on' : ''}`, disabled: !on && (cooling || !!pv?.joker_pending || g.status !== 'running'), html: `${icon(type === 'skip' ? 'skip' : type === 'double' ? 'double' : 'ghost', 20)}<span></span>` });
@@ -361,6 +362,7 @@ export function playScreen(ctx) {
           return b;
         })));
     } else {
+      keys.jokerSub = null;
       jokerBox.replaceChildren();
     }
 

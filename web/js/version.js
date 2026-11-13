@@ -1,10 +1,15 @@
 // Version und Release Notes. Bei jedem Update: VERSION hier, in sw.js und in package.json erhöhen
 // und oben in RELEASES einen Eintrag ergänzen (tests/core.test.js prüft, dass alles zusammenpasst).
 // Die neue Version lädt sich die App von selbst nach (Service Worker) und zeigt danach die Neuerungen.
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 
 /** Neueste Version zuerst. items: kurze Sätze für Spieler, nicht für Entwickler. */
 export const RELEASES = [
+  {
+    version: '0.3.1',
+    date: '2026-11-14',
+    items: ['Der Sound-Joker spielt jetzt einen neuen Ton ab.'],
+  },
   {
     version: '0.3.0',
     date: '2026-11-13',

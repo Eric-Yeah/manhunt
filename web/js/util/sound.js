@@ -1,7 +1,7 @@
 // Sound-Joker: Ton abspielen, wenn ein Sucher ihn bei einem Gejagten auslöst.
 // Browser erlauben Ton erst nach einer Berührung der Seite. Deshalb "entsperren" wir ihn beim ersten Tippen
 // (stumm kurz abspielen), damit der Ton später auch ohne Berührung losgehen darf.
-const SRC = new URL('../../sounds/fahh.mp3', import.meta.url).href;
+const SRC = new URL('../../sounds/joker.mp3', import.meta.url).href;
 const REPEATS = 3;
 
 let audio = null;

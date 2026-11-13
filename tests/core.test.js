@@ -509,9 +509,9 @@ test('Service Worker kennt alle App-Module (Offline nach dem ersten Besuch)', as
 test('Sound des Sound-Jokers liegt in der App und im Cache', async () => {
   const fs = await import('node:fs');
   const sw = fs.readFileSync(new URL('../web/sw.js', import.meta.url), 'utf8');
-  const size = fs.statSync(new URL('../web/sounds/fahh.mp3', import.meta.url)).size;
+  const size = fs.statSync(new URL('../web/sounds/joker.mp3', import.meta.url)).size;
   assert.ok(size > 10_000 && size < 1_000_000, `Sound ${size} Bytes`);
-  assert.ok(sw.includes("'sounds/fahh.mp3'"));
+  assert.ok(sw.includes("'sounds/joker.mp3'"));
 });
 
 test('Version: version.js, sw.js und package.json stimmen überein, Release Notes sind gepflegt', async () => {

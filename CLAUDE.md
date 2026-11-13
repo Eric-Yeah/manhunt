@@ -17,7 +17,7 @@ Private Manhunt-Web-App (PWA) für Eric und Freunde. Sprache der App, der Texte 
 - `tests/` – Logik, Handler, RLS gegen echtes Postgres, Deno, UI (Demo), UI gegen Supabase-Nachbau
 
 ## Regeln
-- Echte Standorte der Gejagten dürfen die Sucher nie erreichen. Clients haben nur SELECT (gefiltert per RLS); alles Schreibende läuft über RPCs. `svc_*`-Funktionen nur für service_role.
+- Echte Standorte der Gejagten erreichen die Sucher nur als Ping (genauer Punkt alle X Minuten, so gewollt) oder per Sound-Joker, nie live. Clients haben nur SELECT (gefiltert per RLS); alles Schreibende läuft über RPCs. `svc_*`-Funktionen nur für service_role.
 - Jede Änderung an RLS/RPCs braucht einen Test in `tests/db.test.js`.
 - Nach Änderungen in `web/js/core/` oder `server/`: `npm run build:functions` und die Functions neu deployen.
 - `normalizeSettings()` in `engine.js` und `public.normalize_settings()` in SQL müssen zusammenpassen.

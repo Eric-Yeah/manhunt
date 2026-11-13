@@ -54,7 +54,7 @@ export function settingsScreen(ctx) {
 
   function modeCard() {
     return h('div', { class: 'card' },
-      h('div', { class: 'cl' }, h('span', { class: 'lbl' }, 'Was ein Ping zeigt'), h('span', { class: 'pill ac' }, 'Entfernung')),
+      h('div', { class: 'cl' }, h('span', { class: 'lbl' }, 'Was ein Ping zeigt'), h('span', { class: 'pill ac' }, 'Genauer Punkt + Entfernung')),
       h('p', { class: 'sub' }, 'Bei jedem Ping sieht jeder Sucher, wie viele Meter er vom Gejagten entfernt ist. Keine Richtung, kein Kreis, kein Punkt auf der Karte. Mit mehreren Suchern lässt sich der Gejagte durch Vergleichen eingrenzen.'));
   }
 
@@ -127,8 +127,8 @@ export function settingsScreen(ctx) {
       h('p', { class: 'sub' }, 'Alle Joker gibt es von Anfang an. Jeder lässt sich pro Spieler einmal pro Runde einsetzen.'),
       h('span', { class: 'lbl' }, 'Gejagte'),
       row('skip', 'Ping überspringen', 'Der nächste Ping fällt aus.'),
-      row('double', 'Ungenauer Ping', 'Die Entfernung ist stark verrauscht.'),
-      row('ghost', 'Falsche Entfernung', 'Der Ping misst zu einem erfundenen Ort. Wird erst nach dem Spiel verraten.'),
+      row('double', 'Ungenauer Ping', 'Der Ping zeigt nur einen Kreis statt deines genauen Punkts.'),
+      row('ghost', 'Falscher Ort', 'Der Ping zeigt einen erfundenen Ort. Wird erst nach dem Spiel verraten.'),
       row('target', 'Sucher-Radar', 'Zeigt sofort, wo alle Sucher gerade genau sind.'),
       h('span', { class: 'lbl' }, 'Sucher'),
       row('megaphone', 'Sound-Joker', 'Spielt bei einem Gejagten einen Ton ab und zeigt allen Suchern seinen genauen Standort.'));

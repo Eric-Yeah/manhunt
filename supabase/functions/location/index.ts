@@ -223,8 +223,8 @@ function stageIndexAt(stages, msSinceHuntStart) {
 // web/js/core/engine.js
 var DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
-  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  // 'distance' = Sucher sehen bei jedem Ping den genauen Punkt des Gejagten und die Entfernung zu sich selbst in Metern.
+  // Die älteren Modi (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
   ping_mode: "distance",
   ping_radius_m: 250,
   headstart_s: 600,
@@ -270,8 +270,8 @@ function normalizeSettings(input = {}) {
 }
 var HIDER_JOKERS = {
   skip: { label: "Ping \xFCberspringen", sub: "Der n\xE4chste Ping f\xE4llt aus.", icon: "skip", pending: true },
-  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
-  decoy: { label: "Falsche Entfernung", sub: "Der n\xE4chste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
+  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping zeigt nur einen Kreis von 150 m statt deines genauen Punkts. Die Entfernung ist auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
+  decoy: { label: "Falscher Ort", sub: "Der n\xE4chste Ping zeigt einen erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
   reveal: { label: "Sucher-Radar", sub: "Zeigt dir sofort, wo alle Sucher gerade genau sind.", icon: "target", pending: false }
 };
 var HUNTER_JOKERS = {

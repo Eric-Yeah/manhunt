@@ -135,6 +135,18 @@ function buildPing(mode, target, o = {}, rng = Math.random) {
   }
   throw new Error(`Unbekannter Ping-Modus: ${mode}`);
 }
+function buildHunterPing(target, o = {}, rng = Math.random) {
+  let loc;
+  if (o.double) {
+    const r = 150;
+    const c = offsetCircleCenter(target, r, rng);
+    loc = { lat: round6(c.lat), lon: round6(c.lon), radius_m: r };
+  } else {
+    loc = { lat: round6(target.lat), lon: round6(target.lon), radius_m: null };
+  }
+  if (!o.ref) return { mode: o.double ? "circle" : "exact", ...loc };
+  return { ...buildPing("distance", target, { ref: o.ref, double: o.double }, rng), ...loc };
+}
 function round6(x) {
   return Math.round(x * 1e6) / 1e6;
 }
@@ -152,8 +164,8 @@ function stageIndexAt(stages, msSinceHuntStart) {
 // web/js/core/engine.js
 var DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
-  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  // 'distance' = Sucher sehen bei jedem Ping den genauen Punkt des Gejagten und die Entfernung zu sich selbst in Metern.
+  // Die älteren Modi (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
   ping_mode: "distance",
   ping_radius_m: 250,
   headstart_s: 600,
@@ -199,8 +211,8 @@ function normalizeSettings(input = {}) {
 }
 var HIDER_JOKERS = {
   skip: { label: "Ping \xFCberspringen", sub: "Der n\xE4chste Ping f\xE4llt aus.", icon: "skip", pending: true },
-  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
-  decoy: { label: "Falsche Entfernung", sub: "Der n\xE4chste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
+  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping zeigt nur einen Kreis von 150 m statt deines genauen Punkts. Die Entfernung ist auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
+  decoy: { label: "Falscher Ort", sub: "Der n\xE4chste Ping zeigt einen erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
   reveal: { label: "Sucher-Radar", sub: "Zeigt dir sofort, wo alle Sucher gerade genau sind.", icon: "target", pending: false }
 };
 var HUNTER_JOKERS = {
@@ -258,11 +270,8 @@ function pingRowsFor(ctx, hider, seq, kind, now, rng, joker, zoneGeom) {
     const rows = [{ ...extra, mode: "distance", distance_m: null }];
     for (const hunter of ctx.players.filter((p) => p.role === "hunter" && p.status === "active")) {
       const hv = ctx.privs[hunter.id];
-      if (hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS) {
-        rows.push({ ...extra, recipient_id: hunter.id, ...buildPing("distance", target, { ref: { lat: hv.kf_lat, lon: hv.kf_lon }, double }, rng) });
-      } else {
-        rows.push({ ...base, recipient_id: hunter.id, mode: "none", no_signal: true });
-      }
+      const ref = hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS ? { lat: hv.kf_lat, lon: hv.kf_lon } : null;
+      rows.push({ ...extra, recipient_id: hunter.id, ...buildHunterPing(target, { ref, double }, rng) });
     }
     return rows;
   }

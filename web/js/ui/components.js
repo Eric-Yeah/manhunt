@@ -72,7 +72,7 @@ export function signalEl(p, now) {
 }
 
 export function pingModeText(s) {
-  if (s.ping_mode === 'distance') return 'Entfernung in Metern';
+  if (s.ping_mode === 'distance') return 'Genauer Punkt + Entfernung';
   if (s.ping_mode === 'exact') return 'Exakter Punkt';
   if (s.ping_mode === 'direction') return 'Richtung & Entfernung';
   return `Kreis ${s.ping_radius_m} m`;
@@ -101,7 +101,7 @@ export function privacyBody(settings) {
   const li = (t) => h('li', { style: { marginBottom: '6px' } }, t);
   return h('div', { class: 'stack' },
     h('ul', { class: 'sub', style: { paddingLeft: '18px', fontSize: '14px', color: 'var(--tx)' } },
-      li('Sucher sehen von den Gejagten nie die echte Position. Jeder Ping zeigt nur die Entfernung in Metern von der eigenen Position zum Gejagten.'),
+      li('Bei jedem Ping sehen die Sucher den genauen Punkt, an dem der Gejagte gerade ist, und ihre eigene Entfernung dazu in Metern. Zwischen den Pings bleibt der Standort geheim.'),
       li('Joker: Setzt ein Sucher den Sound-Joker ein, spielt das Handy des Gejagten einen Ton und alle Sucher sehen dessen genauen Standort. Mit dem Sucher-Radar sieht ein Gejagter einmal pro Runde, wo die Sucher gerade genau sind.'),
       li('Wer gefunden wurde, gibt keinen Standort mehr weiter. Wer danach als Sucher mitjagt, gehört ab dann zum Sucher-Team.'),
       li(s.show_teammates ? 'Dein eigenes Team sieht deine Position live auf der Karte. Das andere Team nicht.' : 'Niemand sonst sieht deine Position live, auch dein Team nicht.'),

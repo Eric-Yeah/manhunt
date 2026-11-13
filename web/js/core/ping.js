@@ -2,7 +2,8 @@
 // Die echte Position verlässt diese Funktion nie unverändert, außer im Modus "exakter Punkt".
 import { destination, distanceM, bearingDeg, compass } from './geo.js';
 
-// 'distance' ist der Standard: Sucher sehen nur die Entfernung in Metern. Die anderen Modi gibt es nur noch für alte Spiele.
+// 'distance' ist der Standard: Sucher sehen bei jedem Ping den genauen Punkt des Gejagten und ihre Entfernung dazu in Metern.
+// Die anderen Modi (exact, circle, direction) gibt es nur noch für alte Spiele.
 export const PING_MODES = ['distance', 'exact', 'circle', 'direction'];
 
 /** Entfernung auf grobe Stufen runden, damit man aus Richtung + Entfernung nicht zurückrechnen kann. */
@@ -80,6 +81,24 @@ export function buildPing(mode, target, o = {}, rng = Math.random) {
   throw new Error(`Unbekannter Ping-Modus: ${mode}`);
 }
 
+/**
+ * Ping für einen Sucher im Standard-Modus: genauer Punkt des Gejagten UND die Entfernung von der
+ * eigenen Position des Suchers. Ohne frische Sucher-Position gibt es nur den Punkt.
+ * "Ungenauer Ping": nur ein Kreis (150 m) um einen versetzten Mittelpunkt, Entfernung grob.
+ */
+export function buildHunterPing(target, o = {}, rng = Math.random) {
+  let loc;
+  if (o.double) {
+    const r = 150;
+    const c = offsetCircleCenter(target, r, rng);
+    loc = { lat: round6(c.lat), lon: round6(c.lon), radius_m: r };
+  } else {
+    loc = { lat: round6(target.lat), lon: round6(target.lon), radius_m: null };
+  }
+  if (!o.ref) return { mode: o.double ? 'circle' : 'exact', ...loc };
+  return { ...buildPing('distance', target, { ref: o.ref, double: o.double }, rng), ...loc };
+}
+
 function round6(x) {
   return Math.round(x * 1e6) / 1e6;
 }
@@ -87,6 +106,11 @@ function round6(x) {
 /** Zeile ohne Entfernung, die nur dem Gejagten meldet "du wurdest geortet" (Entfernungs-Modus). */
 export function isNotice(p) {
   return p?.mode === 'distance' && !p.recipient_id;
+}
+
+/** Hat dieser Ping einen Ort auf der Karte (genauer Punkt oder Kreis)? */
+export function hasPoint(p) {
+  return Number.isFinite(p?.lat) && Number.isFinite(p?.lon);
 }
 
 /** Text für die Anzeige, z. B. "412 m" (beim ungenauen Ping "ca. 400 m"). */

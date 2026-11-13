@@ -3,13 +3,13 @@
 // Alle Zeiten in Millisekunden (Unix-Zeit).
 import { isValidLatLon, boundaryStatus, centroidOf, randomPointInGeometry, distanceM } from './geo.js';
 import { kalmanUpdate } from './kalman.js';
-import { buildPing } from './ping.js';
+import { buildPing, buildHunterPing } from './ping.js';
 import { stageIndexAt } from './zone.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
-  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  // 'distance' = Sucher sehen bei jedem Ping den genauen Punkt des Gejagten und die Entfernung zu sich selbst in Metern.
+  // Die älteren Modi (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
   ping_mode: 'distance',
   ping_radius_m: 250,
   headstart_s: 600,
@@ -62,8 +62,8 @@ export function normalizeSettings(input = {}) {
 // "pending" = wirkt auf den nächsten Ping; sonst sofort.
 export const HIDER_JOKERS = {
   skip: { label: 'Ping überspringen', sub: 'Der nächste Ping fällt aus.', icon: 'skip', pending: true },
-  double: { label: 'Ungenauer Ping', sub: 'Der nächste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.', icon: 'double', pending: true },
-  decoy: { label: 'Falsche Entfernung', sub: 'Der nächste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.', icon: 'ghost', pending: true },
+  double: { label: 'Ungenauer Ping', sub: 'Der nächste Ping zeigt nur einen Kreis von 150 m statt deines genauen Punkts. Die Entfernung ist auf 100 m gerundet und bis zu 150 m daneben.', icon: 'double', pending: true },
+  decoy: { label: 'Falscher Ort', sub: 'Der nächste Ping zeigt einen erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.', icon: 'ghost', pending: true },
   reveal: { label: 'Sucher-Radar', sub: 'Zeigt dir sofort, wo alle Sucher gerade genau sind.', icon: 'target', pending: false },
 };
 export const HUNTER_JOKERS = {
@@ -188,16 +188,14 @@ function pingRowsFor(ctx, hider, seq, kind, now, rng, joker, zoneGeom) {
   const double = joker === 'double' && kind === 'regular';
   const extra = { ...base, age_s, decoy, joker: double ? 'double' : null };
   if (s.ping_mode === 'distance') {
-    // Jeder Sucher bekommt nur die Entfernung von seiner eigenen Position zum Gejagten (in Metern).
-    // Die Zeile ohne Empfänger ist nur die Meldung an den Gejagten, dass geortet wurde.
+    // Die Zeile ohne Empfänger ist nur die Meldung an den Gejagten, dass geortet wurde (ohne Ort und Entfernung).
+    // Jeder Sucher bekommt den genauen Punkt und die Entfernung von seiner eigenen Position zum Gejagten.
+    // Ohne frische Sucher-Position gibt es nur den Punkt.
     const rows = [{ ...extra, mode: 'distance', distance_m: null }];
     for (const hunter of ctx.players.filter((p) => p.role === 'hunter' && p.status === 'active')) {
       const hv = ctx.privs[hunter.id];
-      if (hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS) {
-        rows.push({ ...extra, recipient_id: hunter.id, ...buildPing('distance', target, { ref: { lat: hv.kf_lat, lon: hv.kf_lon }, double }, rng) });
-      } else {
-        rows.push({ ...base, recipient_id: hunter.id, mode: 'none', no_signal: true });
-      }
+      const ref = hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS ? { lat: hv.kf_lat, lon: hv.kf_lon } : null;
+      rows.push({ ...extra, recipient_id: hunter.id, ...buildHunterPing(target, { ref, double }, rng) });
     }
     return rows;
   }

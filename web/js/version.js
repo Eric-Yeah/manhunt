@@ -1,10 +1,18 @@
 // Version und Release Notes. Bei jedem Update: VERSION hier, in sw.js und in package.json erhöhen
 // und oben in RELEASES einen Eintrag ergänzen (tests/core.test.js prüft, dass alles zusammenpasst).
 // Die neue Version lädt sich die App von selbst nach (Service Worker) und zeigt danach die Neuerungen.
-export const VERSION = '0.3.1';
+export const VERSION = '0.3.2';
 
 /** Neueste Version zuerst. items: kurze Sätze für Spieler, nicht für Entwickler. */
 export const RELEASES = [
+  {
+    version: '0.3.2',
+    date: '2026-11-14',
+    items: [
+      'Behoben: Ein Ping zeigt den Suchern jetzt wieder den genauen Punkt, an dem der Gejagte beim Ping war, zusätzlich zur Entfernung von dir aus. Gilt ab dem nächsten Ping, auch in laufenden Runden.',
+      'Der Joker „Ungenauer Ping“ zeigt jetzt einen Kreis von 150 m statt des genauen Punkts. „Falsche Entfernung“ heißt jetzt „Falscher Ort“ und zeigt einen erfundenen Ort.',
+    ],
+  },
   {
     version: '0.3.1',
     date: '2026-11-14',

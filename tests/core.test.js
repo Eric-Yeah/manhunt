@@ -5,7 +5,7 @@ import {
   distanceM, destination, bearingDeg, compass, boundaryStatus, circleFeature, polygonFeature,
   areaM2, validateArea, distanceToBoundaryM, isValidLatLon, randomPointInGeometry, pointInGeometry,
 } from '../web/js/core/geo.js';
-import { buildPing, offsetCircleCenter, roundDistance, directionText, distanceText, isNotice } from '../web/js/core/ping.js';
+import { buildPing, buildHunterPing, hasPoint, offsetCircleCenter, roundDistance, directionText, distanceText, isNotice } from '../web/js/core/ping.js';
 import { kalmanUpdate } from '../web/js/core/kalman.js';
 import { computeZoneStages, stageIndexAt, MAX_STAGES } from '../web/js/core/zone.js';
 import {
@@ -330,7 +330,31 @@ test('Entfernungs-Ping zeigt nur Meter, kein Ort, keine Richtung', () => {
   assert.throws(() => buildPing('distance', target, {}, seeded(1)), /Position des Suchers/);
 });
 
-test('Tick im Standard-Modus: jeder Sucher bekommt seine eigene Entfernung, der Gejagte nur eine Meldung', () => {
+test('Standard-Ping: genauer Punkt plus Entfernung für den Sucher', () => {
+  const target = destination(C, 437, 52);
+  const p = buildHunterPing(target, { ref: C }, seeded(3));
+  assert.equal(p.mode, 'distance');
+  assert.ok(Math.abs(p.distance_m - 437) <= 1);
+  assert.ok(distanceM(p, target) < 0.5, 'Punkt ist der echte Ort');
+  assert.equal(p.radius_m, null);
+  assert.equal(hasPoint(p), true);
+  assert.equal(hasPoint({ mode: 'distance', distance_m: 5 }), false);
+  // Ohne Sucher-Position: nur der Punkt
+  const noRef = buildHunterPing(target, {}, seeded(3));
+  assert.equal(noRef.mode, 'exact');
+  assert.ok(distanceM(noRef, target) < 0.5);
+  // Ungenau: Kreis von 150 m, echte Position liegt immer darin, aber nicht in der Mitte
+  for (let i = 0; i < 300; i++) {
+    const q = buildHunterPing(target, { ref: C, double: true }, seeded(i + 1));
+    assert.equal(q.radius_m, 150);
+    const off = distanceM(q, target);
+    assert.ok(off <= 150 * 0.85 + 1 && off >= 150 * 0.25 - 1, String(off));
+    assert.equal(q.distance_m % 100, 0);
+  }
+  assert.equal(buildHunterPing(target, { double: true }, seeded(1)).mode, 'circle');
+});
+
+test('Tick im Standard-Modus: jeder Sucher bekommt Punkt und eigene Entfernung, der Gejagte nur eine Meldung', () => {
   const { ctx, now, hiderPos } = tickCtx(undefined, { settings: { ping_mode: 'distance' } });
   const plan = planTick(ctx, now, seeded(5));
   const rows = plan.pings;
@@ -339,28 +363,33 @@ test('Tick im Standard-Modus: jeder Sucher bekommt seine eigene Entfernung, der 
   assert.equal(notice.mode, 'distance');
   assert.equal(notice.distance_m, null);
   assert.equal(notice.ref_lat, undefined);
+  assert.equal(notice.lat, undefined, 'die Meldung an den Gejagten enthält keinen Ort');
   const forBen = rows.find((p) => p.recipient_id === 'k1');
   assert.ok(Math.abs(forBen.distance_m - distanceM(C, hiderPos)) <= 1);
-  assert.equal(forBen.lat, undefined);
-  // Eric hat keinen Standort: kein erfundener Bezugspunkt, nur "kein Signal"
+  assert.ok(distanceM(forBen, hiderPos) < 0.5, 'Ben sieht den genauen Punkt');
+  // Eric hat keinen Standort: er bekommt trotzdem den Punkt, nur ohne Entfernung
   const forEric = rows.find((p) => p.recipient_id === 'k2');
-  assert.equal(forEric.mode, 'none');
-  assert.equal(forEric.no_signal, true);
+  assert.equal(forEric.mode, 'exact');
+  assert.ok(distanceM(forEric, hiderPos) < 0.5);
+  assert.equal(forEric.distance_m, undefined);
   // Gefundene Gejagte bekommen keinen Ping
   assert.ok(rows.every((p) => p.hider_id === 'h1'));
 });
 
-test('Joker beim Entfernungs-Ping: Überspringen, ungenau, falsche Entfernung', () => {
+test('Joker beim Standard-Ping: Überspringen, ungenau, falscher Ort', () => {
   let { ctx, now, hiderPos } = tickCtx('distance', { h1: { joker_pending: 'double' } });
   let rows = planTick(ctx, now, seeded(5)).pings;
   const dbl = rows.find((p) => p.recipient_id === 'k1');
   assert.equal(dbl.joker, 'double');
   assert.equal(dbl.distance_m % 100, 0);
+  assert.equal(dbl.radius_m, 150);
+  assert.ok(distanceM(dbl, hiderPos) <= 150, 'Kreis schließt die echte Position ein');
   ({ ctx, now, hiderPos } = tickCtx('distance', { h1: { joker_pending: 'decoy' } }));
   rows = planTick(ctx, now, seeded(5)).pings;
   const fake = rows.find((p) => p.recipient_id === 'k1');
   assert.equal(fake.decoy, true);
   assert.ok(Math.abs(fake.distance_m - distanceM(C, hiderPos)) > 50, 'falsche Entfernung weicht deutlich ab');
+  assert.ok(distanceM(fake, hiderPos) >= 299, 'der angezeigte Punkt ist ein erfundener Ort');
   ({ ctx, now } = tickCtx('distance', { h1: { joker_pending: 'skip' } }));
   rows = planTick(ctx, now, seeded(5)).pings;
   assert.equal(rows.length, 1);

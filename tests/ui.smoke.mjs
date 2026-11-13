@@ -59,8 +59,12 @@ try {
   await tap('1 min', { exact: true });
   await tap('Ohne', { exact: true });
   await page.getByRole('switch', { name: /Schrumpfende Zone/ }).click();
-  await page.getByRole('switch', { name: /Doppelter Kreis/ }).click();
-  await page.getByRole('switch', { name: /Ping überspringen/ }).click();
+  // Schrumpfung per Schieberegler: Plus-Knopf, Ziehen auf hohen Wert
+  await page.getByRole('button', { name: 'Zone schrumpft alle: eins mehr' }).click();
+  if (!(await page.locator('.card', { hasText: 'Zone schrumpft alle' }).first().innerText()).includes('16 min')) errors.push('test: Plus-Knopf der Schrumpf-Zeit wirkt nicht');
+  await page.locator('input[aria-label="Fläche pro Schritt kleiner um"]').evaluate((el) => { el.value = '85'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); });
+  if (!(await page.locator('.card', { hasText: 'Fläche pro Schritt' }).first().innerText()).includes('85 %')) errors.push('test: Flächen-Regler wirkt nicht');
+  await page.locator('input[aria-label="Fläche pro Schritt kleiner um"]').evaluate((el) => { el.value = '10'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); });
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await shot('regeln-unten');
   await tap('Weiter: Spielgebiet');
@@ -123,6 +127,34 @@ try {
   await wait(400);
   await shot('sucher-sheet-offen');
   await page.locator('.grab').click();
+  // Ping-Menü nach unten wegwischen und wieder hochziehen
+  const swipe = async (dy) => {
+    const gb = await page.locator('.grab').boundingBox();
+    const x = gb.x + gb.width / 2, y = gb.y + gb.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + dy / 2, { steps: 5 });
+    await page.mouse.move(x, y + dy, { steps: 5 });
+    await page.mouse.up();
+    await wait(450);
+  };
+  await swipe(140);
+  if (!(await page.locator('.sheet').evaluate((el) => el.classList.contains('peek')))) errors.push('test: Ping-Menü lässt sich nicht wegwischen');
+  await shot('menue-weg');
+  await swipe(-140);
+  if (await page.locator('.sheet').evaluate((el) => el.classList.contains('peek'))) errors.push('test: Ping-Menü lässt sich nicht wieder hochziehen');
+  await swipe(-140);
+  if (!(await page.locator('.sheet').evaluate((el) => el.classList.contains('open')))) errors.push('test: Hochwischen öffnet das Menü nicht ganz');
+  await swipe(100);
+  if (await page.locator('.sheet').evaluate((el) => el.classList.contains('open') || el.classList.contains('peek'))) errors.push('test: Runterwischen aus dem offenen Menü klappt es nicht ein');
+  // Sound-Joker (Demo): Gejagten wählen, genauer Standort erscheint
+  await page.locator('.joker', { hasText: 'Sound-Joker' }).click();
+  await page.waitForSelector('.modal .btn.pri');
+  await page.locator('.modal .btn.pri').first().click();
+  await wait(900);
+  if (!(await page.locator('.hist').innerText()).includes('Sound-Joker: genauer Standort')) errors.push('test: Sound-Joker zeigt keinen genauen Standort im Ping-Verlauf');
+  if (!(await page.locator('.joker', { hasText: 'Sound-Joker' }).evaluate((el) => el.disabled))) errors.push('test: Sound-Joker ist nach dem Einsatz nicht gesperrt');
+  await shot('sound-joker');
   // Chat
   await page.getByRole('button', { name: 'Chat öffnen' }).click();
   await page.waitForSelector('.chat-list');

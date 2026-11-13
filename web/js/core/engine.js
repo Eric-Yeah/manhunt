@@ -1,14 +1,16 @@
 // Spielregeln als reine Funktionen. Werden von den Edge Functions (echtes Spiel)
 // und vom Demo-Modus (Simulation im Browser) gleichermaßen benutzt.
 // Alle Zeiten in Millisekunden (Unix-Zeit).
-import { isValidLatLon, boundaryStatus, centroidOf, randomPointInGeometry } from './geo.js';
+import { isValidLatLon, boundaryStatus, centroidOf, randomPointInGeometry, distanceM } from './geo.js';
 import { kalmanUpdate } from './kalman.js';
 import { buildPing } from './ping.js';
 import { stageIndexAt } from './zone.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  ping_mode: 'circle',
+  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
+  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  ping_mode: 'distance',
   ping_radius_m: 250,
   headstart_s: 600,
   duration_s: 3600,
@@ -20,10 +22,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
   shrink_enabled: false,
   shrink_every_s: 900,
   shrink_percent: 10,
-  joker_skip: false,
-  joker_double: false,
-  joker_decoy: false,
-  joker_cooldown_s: 900,
   show_teammates: true,
   retention_h: 24,
 });
@@ -37,18 +35,17 @@ export const SETTING_LIMITS = Object.freeze({
   boundary_warn_s: [5, 300],
   boundary_tolerance_m: [0, 100],
   accuracy_max_m: [10, 200],
-  shrink_every_s: [60, 3600],
-  shrink_percent: [5, 50],
-  joker_cooldown_s: [60, 3600],
+  shrink_every_s: [60, 7200],
+  shrink_percent: [1, 90],
   retention_h: [1, 72],
 });
 
 const ENUMS = {
-  ping_mode: ['exact', 'circle', 'direction'],
+  ping_mode: ['distance', 'exact', 'circle', 'direction'],
   role_mode: ['choose', 'random'],
   boundary_penalty: ['extra_ping', 'eliminate'],
 };
-const BOOLS = ['shrink_enabled', 'joker_skip', 'joker_double', 'joker_decoy', 'show_teammates'];
+const BOOLS = ['shrink_enabled', 'show_teammates'];
 
 export function normalizeSettings(input = {}) {
   const s = { ...DEFAULT_SETTINGS };
@@ -61,11 +58,29 @@ export function normalizeSettings(input = {}) {
   return s;
 }
 
-export const JOKERS = {
-  skip: { label: 'Ping überspringen', setting: 'joker_skip' },
-  double: { label: 'Doppelter Kreis', setting: 'joker_double' },
-  decoy: { label: 'Falscher Ort', setting: 'joker_decoy' },
+// Joker: Jeder Spieler hat von Anfang an alle seine Joker, jeden aber nur einmal pro Runde.
+// "pending" = wirkt auf den nächsten Ping; sonst sofort.
+export const HIDER_JOKERS = {
+  skip: { label: 'Ping überspringen', sub: 'Der nächste Ping fällt aus.', icon: 'skip', pending: true },
+  double: { label: 'Ungenauer Ping', sub: 'Der nächste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.', icon: 'double', pending: true },
+  decoy: { label: 'Falsche Entfernung', sub: 'Der nächste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.', icon: 'ghost', pending: true },
+  reveal: { label: 'Sucher-Radar', sub: 'Zeigt dir sofort, wo alle Sucher gerade genau sind.', icon: 'target', pending: false },
 };
+export const HUNTER_JOKERS = {
+  sound: { label: 'Sound-Joker', sub: 'Spielt bei einem Gejagten einen Ton ab und zeigt dir seinen genauen Standort.', icon: 'megaphone', pending: false },
+};
+export const JOKERS = { ...HIDER_JOKERS, ...HUNTER_JOKERS };
+export const PENDING_JOKERS = Object.keys(HIDER_JOKERS).filter((k) => HIDER_JOKERS[k].pending);
+
+/** Hat der Spieler diesen Joker in der laufenden Runde schon eingesetzt? (priv = player_private-Zeile) */
+export function jokerUsed(priv, type) {
+  return !!(priv?.joker_used && Object.prototype.hasOwnProperty.call(priv.joker_used, type));
+}
+
+/** Rolle, mit der der Spieler in die Runde gestartet ist (gefundene Gejagte können Sucher werden). */
+export function startRole(p) {
+  return p?.start_role || p?.role;
+}
 
 /** Index der Zonen-Stufe, die zu "now" gilt. */
 export function zoneIndexAt(game, now) {
@@ -159,11 +174,33 @@ function pingRowsFor(ctx, hider, seq, kind, now, rng, joker, zoneGeom) {
   let target = truePos;
   let decoy = false;
   if (joker === 'decoy' && kind === 'regular' && zoneGeom) {
-    target = randomPointInGeometry(zoneGeom, rng, truePos, 300, 900);
+    // Im Entfernungs-Modus soll die falsche Entfernung für jeden Sucher deutlich daneben liegen (mind. 150 m).
+    const refs = s.ping_mode === 'distance'
+      ? ctx.players.filter((p) => p.role === 'hunter' && p.status === 'active').map((p) => ctx.privs[p.id])
+        .filter((hv) => hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS).map((hv) => ({ lat: hv.kf_lat, lon: hv.kf_lon }))
+      : [];
+    for (let i = 0; i < 30; i++) {
+      target = randomPointInGeometry(zoneGeom, rng, truePos, 300, 900);
+      if (refs.every((r) => Math.abs(distanceM(r, target) - distanceM(r, truePos)) >= 150)) break;
+    }
     decoy = true;
   }
   const double = joker === 'double' && kind === 'regular';
   const extra = { ...base, age_s, decoy, joker: double ? 'double' : null };
+  if (s.ping_mode === 'distance') {
+    // Jeder Sucher bekommt nur die Entfernung von seiner eigenen Position zum Gejagten (in Metern).
+    // Die Zeile ohne Empfänger ist nur die Meldung an den Gejagten, dass geortet wurde.
+    const rows = [{ ...extra, mode: 'distance', distance_m: null }];
+    for (const hunter of ctx.players.filter((p) => p.role === 'hunter' && p.status === 'active')) {
+      const hv = ctx.privs[hunter.id];
+      if (hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS) {
+        rows.push({ ...extra, recipient_id: hunter.id, ...buildPing('distance', target, { ref: { lat: hv.kf_lat, lon: hv.kf_lon }, double }, rng) });
+      } else {
+        rows.push({ ...base, recipient_id: hunter.id, mode: 'none', no_signal: true });
+      }
+    }
+    return rows;
+  }
   if (s.ping_mode === 'direction') {
     return hunterRefs(ctx, now, zoneGeom).map(({ hunter, ref, refIsCenter }) => ({
       ...extra,
@@ -257,7 +294,7 @@ export function planTick(ctx, now, rng = Math.random) {
     for (const h of hiders) {
       if (eliminated.has(h.id)) continue;
       const pending = ctx.privs[h.id]?.joker_pending;
-      const joker = pending && s[`joker_${pending}`] ? pending : null;
+      const joker = PENDING_JOKERS.includes(pending) ? pending : null;
       if (pending) plan.consumed_jokers.push(h.id);
       plan.pings.push(...pingRowsFor(ctx, h, seq, 'regular', now, rng, joker, zoneGeom));
     }

@@ -11,9 +11,10 @@ import { ts } from '../util/format.js';
 //   secrets   sichtbare Ping-Geheimnisse (Täuschungs-Joker)
 //   messages  sichtbare Chatnachrichten
 //   teammates letzte Position je Teammitglied {player_id: {lat, lon, at, accuracy}}
+//   events    Joker-Ereignisse nur für mich: Sucher-Radar (positions) und Sound-Joker (kind 'sound')
 
 export function emptySnap() {
-  return { game: null, players: [], me: null, priv: null, pings: [], secrets: [], messages: [], teammates: {} };
+  return { game: null, players: [], me: null, priv: null, pings: [], secrets: [], messages: [], teammates: {}, events: [] };
 }
 
 export class BaseBackend {

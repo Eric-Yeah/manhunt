@@ -223,7 +223,9 @@ function stageIndexAt(stages, msSinceHuntStart) {
 // web/js/core/engine.js
 var DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  ping_mode: "circle",
+  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
+  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  ping_mode: "distance",
   ping_radius_m: 250,
   headstart_s: 600,
   duration_s: 3600,
@@ -235,10 +237,6 @@ var DEFAULT_SETTINGS = Object.freeze({
   shrink_enabled: false,
   shrink_every_s: 900,
   shrink_percent: 10,
-  joker_skip: false,
-  joker_double: false,
-  joker_decoy: false,
-  joker_cooldown_s: 900,
   show_teammates: true,
   retention_h: 24
 });
@@ -250,17 +248,16 @@ var SETTING_LIMITS = Object.freeze({
   boundary_warn_s: [5, 300],
   boundary_tolerance_m: [0, 100],
   accuracy_max_m: [10, 200],
-  shrink_every_s: [60, 3600],
-  shrink_percent: [5, 50],
-  joker_cooldown_s: [60, 3600],
+  shrink_every_s: [60, 7200],
+  shrink_percent: [1, 90],
   retention_h: [1, 72]
 });
 var ENUMS = {
-  ping_mode: ["exact", "circle", "direction"],
+  ping_mode: ["distance", "exact", "circle", "direction"],
   role_mode: ["choose", "random"],
   boundary_penalty: ["extra_ping", "eliminate"]
 };
-var BOOLS = ["shrink_enabled", "joker_skip", "joker_double", "joker_decoy", "show_teammates"];
+var BOOLS = ["shrink_enabled", "show_teammates"];
 function normalizeSettings(input = {}) {
   const s = { ...DEFAULT_SETTINGS };
   for (const [k, [min, max]] of Object.entries(SETTING_LIMITS)) {
@@ -271,6 +268,17 @@ function normalizeSettings(input = {}) {
   for (const k of BOOLS) if (typeof input?.[k] === "boolean") s[k] = input[k];
   return s;
 }
+var HIDER_JOKERS = {
+  skip: { label: "Ping \xFCberspringen", sub: "Der n\xE4chste Ping f\xE4llt aus.", icon: "skip", pending: true },
+  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
+  decoy: { label: "Falsche Entfernung", sub: "Der n\xE4chste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
+  reveal: { label: "Sucher-Radar", sub: "Zeigt dir sofort, wo alle Sucher gerade genau sind.", icon: "target", pending: false }
+};
+var HUNTER_JOKERS = {
+  sound: { label: "Sound-Joker", sub: "Spielt bei einem Gejagten einen Ton ab und zeigt dir seinen genauen Standort.", icon: "megaphone", pending: false }
+};
+var JOKERS = { ...HIDER_JOKERS, ...HUNTER_JOKERS };
+var PENDING_JOKERS = Object.keys(HIDER_JOKERS).filter((k) => HIDER_JOKERS[k].pending);
 function zoneIndexAt(game, now) {
   const stages = game.zone_stages;
   if (!Array.isArray(stages) || stages.length < 2 || !game.hunt_starts_at || now < game.hunt_starts_at) return 0;
@@ -343,7 +351,7 @@ async function handleLocation(req, { rpc: rpc2, now = Date.now }) {
   }
   if (!ctx.active) return json({ ok: true, active: false, info: "Kein aktives Spiel. Standort wird nicht gespeichert." });
   const base = { player_id: ctx.player.id, source: m.source };
-  if (ctx.game.status !== "running" || m.invalidFix) {
+  if (ctx.game.status !== "running" || m.invalidFix || ctx.player.status !== "active") {
     await rpc2("svc_store_location", { p: { ...base, signal_only: true } });
     return json({ ok: true, stored: false, status: ctx.game.status });
   }

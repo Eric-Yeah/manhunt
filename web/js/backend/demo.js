@@ -2,7 +2,7 @@
 // Nutzt dieselbe Spiel-Logik (core/engine.js) wie die Edge Functions und bildet die
 // Sichtbarkeitsregeln der Datenbank (RLS) nach. Die Zeit läuft 10× schneller.
 import { BaseBackend, emptySnap } from './base.js';
-import { normalizeSettings, assignRoles, processLocation, planTick, isPlanEmpty, zoneGeometryAt } from '../core/engine.js';
+import { normalizeSettings, assignRoles, processLocation, planTick, isPlanEmpty, zoneGeometryAt, PENDING_JOKERS, startRole } from '../core/engine.js';
 import { distanceM, destination, bearingDeg, randomPointInGeometry, pointInGeometry, centroidOf } from '../core/geo.js';
 import { load, save } from '../util/storage.js';
 
@@ -85,7 +85,8 @@ export class DemoBackend extends BaseBackend {
     if (['running', 'paused'].includes(w.game.status) && normalizeSettings(w.game.settings).show_teammates && me?.status === 'active') {
       for (const p of w.players) {
         const pv = w.privs[p.id];
-        if (p.id !== me.id && p.role === role && pv?.kf_lat != null) teammates[p.id] = { lat: pv.kf_lat, lon: pv.kf_lon, at: ms(pv.kf_at), accuracy: 8 };
+        // Gefundene und ausgeschiedene Spieler geben ihren Standort nicht weiter
+        if (p.id !== me.id && p.role === role && p.status === 'active' && pv?.kf_lat != null) teammates[p.id] = { lat: pv.kf_lat, lon: pv.kf_lon, at: ms(pv.kf_at), accuracy: 8 };
       }
     }
     this.snap = {
@@ -96,6 +97,7 @@ export class DemoBackend extends BaseBackend {
       secrets: w.secrets.filter((s) => ended || s.hider_id === me?.id),
       messages: messages.map((m) => ({ ...m })),
       teammates,
+      events: w.events.filter((e) => e.hider_id === me?.id).map((e) => ({ ...e })),
     };
     this.emit();
   }
@@ -128,7 +130,7 @@ export class DemoBackend extends BaseBackend {
         ping_seq: 0, hunt_announced: false, paused_at: null, paused_by: null, pause_reason: null, ended_at: null, winner: null,
         end_reason: null, purge_at: null, rematch_of: null, rematch_id: null,
       },
-      players: [], privs: {}, pings: [], secrets: [], messages: [], locations: [], bots: {}, lastRec: {}, warned: {},
+      players: [], privs: {}, pings: [], secrets: [], messages: [], events: [], locations: [], bots: {}, lastRec: {}, warned: {},
     };
     this.gameId = this.w.game.id;
   }
@@ -213,6 +215,7 @@ export class DemoBackend extends BaseBackend {
     if (r.error) throw new Error(r.error);
     for (const p of w.players) {
       p.role = r.roles[p.id];
+      p.start_role = p.role;
       p.status = 'active';
       p.found_at = null;
       Object.assign(w.privs[p.id], { kf_lat: null, kf_lon: null, kf_at: null, oob_since: null, oob_deadline: null, violation: null, joker_pending: null, joker_used: {} });
@@ -325,14 +328,23 @@ export class DemoBackend extends BaseBackend {
   }
 
   async useJoker(type) {
-    const me = this.me(), g = this.w.game, s = normalizeSettings(g.settings), pv = this.w.privs[me.id];
+    const me = this.me(), g = this.w.game, pv = this.w.privs[me.id];
     if (g.status !== 'running') throw new Error('Joker gibt es nur im laufenden Spiel.');
     if (me.role !== 'hider' || me.status !== 'active') throw new Error('Nur aktive Gejagte haben Joker.');
-    if (!s[`joker_${type}`]) throw new Error('Dieser Joker ist ausgeschaltet.');
+    if (![...PENDING_JOKERS, 'reveal'].includes(type)) throw new Error('Unbekannter Joker.');
+    if (pv.joker_used[type]) throw new Error('Diesen Joker hast du in dieser Runde schon benutzt.');
+    if (type === 'reveal') {
+      const now = this.now();
+      const positions = this.w.players
+        .filter((p) => p.role === 'hunter' && p.status === 'active' && this.w.privs[p.id].kf_lat != null && now - ms(this.w.privs[p.id].kf_at) < 5 * 60_000)
+        .map((p) => ({ player_id: p.id, name: p.name, lat: this.w.privs[p.id].kf_lat, lon: this.w.privs[p.id].kf_lon, age_s: Math.max(0, Math.round((now - ms(this.w.privs[p.id].kf_at)) / 1000)) }));
+      if (!positions.length) throw new Error('Gerade ist kein Sucher-Standort bekannt.');
+      this.w.events.push({ id: this.idc++, game_id: g.id, kind: 'reveal', hider_id: me.id, caller_id: me.id, positions, created_at: iso(now) });
+      pv.joker_used = { ...pv.joker_used, reveal: iso(now) };
+      this.publish();
+      return { revealed: positions.length };
+    }
     if (pv.joker_pending) throw new Error('Für den nächsten Ping ist schon ein Joker aktiv.');
-    const used = Object.values(pv.joker_used).map(ms);
-    const readyAt = used.length ? Math.max(...used) + s.joker_cooldown_s * 1000 : 0;
-    if (readyAt > this.now()) throw new Error(`Joker wieder verfügbar in ${Math.ceil((readyAt - this.now()) / 60000)} min.`);
     pv.joker_pending = type;
     pv.joker_used = { ...pv.joker_used, [type]: iso(this.now()) };
     this.publish();
@@ -340,7 +352,46 @@ export class DemoBackend extends BaseBackend {
   }
 
   async cancelJoker() {
-    this.w.privs[this.me().id].joker_pending = null;
+    const pv = this.w.privs[this.me().id];
+    if (pv.joker_pending) {
+      const { [pv.joker_pending]: _gone, ...rest } = pv.joker_used;
+      pv.joker_used = rest;
+      pv.joker_pending = null;
+    }
+    this.publish();
+  }
+
+  async useHunterJoker(targetId) {
+    const me = this.me(), g = this.w.game, pv = this.w.privs[me.id];
+    if (g.status !== 'running') throw new Error('Joker gibt es nur im laufenden Spiel.');
+    if (me.role !== 'hunter' || me.status !== 'active') throw new Error('Nur aktive Sucher haben diesen Joker.');
+    const t = this.w.players.find((p) => p.id === targetId);
+    if (!t || t.role !== 'hider' || t.status !== 'active') throw new Error('Dieser Gejagte ist nicht mehr im Spiel.');
+    if (pv.joker_used.sound) throw new Error('Den Sound-Joker hast du in dieser Runde schon benutzt.');
+    const tv = this.w.privs[t.id];
+    if (tv.kf_lat == null) throw new Error(`${t.name} hat noch keinen Standort gesendet.`);
+    const now = this.now();
+    const id = this.idc++;
+    this.w.pings.push({
+      id, game_id: g.id, seq: g.ping_seq, hider_id: t.id, recipient_id: null, kind: 'joker_sound', mode: 'exact',
+      lat: tv.kf_lat, lon: tv.kf_lon, radius_m: null, age_s: Math.max(0, Math.round((now - ms(tv.kf_at)) / 1000)),
+      no_signal: false, joker: 'sound', created_at: iso(now),
+    });
+    this.w.events.push({ id: this.idc++, game_id: g.id, kind: 'sound', hider_id: t.id, caller_id: me.id, positions: [], created_at: iso(now) });
+    pv.joker_used = { ...pv.joker_used, sound: iso(now) };
+    this.msg(`${me.name} hat den Sound-Joker gegen ${t.name} eingesetzt!`);
+    this.publish();
+    return { ping_id: id, target: t.id };
+  }
+
+  async becomeHunter() {
+    const me = this.me();
+    if (!['running', 'paused'].includes(this.w.game.status)) throw new Error('Das Spiel läuft gerade nicht.');
+    if (me.role !== 'hider' || me.status !== 'found') throw new Error('Nur gefundene Gejagte können Sucher werden.');
+    me.role = 'hunter';
+    me.status = 'active';
+    Object.assign(this.w.privs[me.id], { oob_since: null, oob_deadline: null, joker_pending: null, violation: null });
+    this.msg(`${me.name} jagt jetzt als Sucher mit!`);
     this.publish();
   }
 
@@ -350,7 +401,7 @@ export class DemoBackend extends BaseBackend {
     const swap = { hunter: 'hider', hider: 'hunter' };
     this.newWorld({ settings: old.game.settings, area: old.game.area, exclusions: old.game.exclusions, zone_stages: old.game.zone_stages });
     for (const p of old.players.filter((x) => x.status !== 'left')) {
-      const n = this.addPlayer(p.name, swap[p.role] || 'random', p.is_host, p.user_id);
+      const n = this.addPlayer(p.name, swap[startRole(p)] || 'random', p.is_host, p.user_id);
       n.ready = p.user_id !== ME;
       n.last_signal_at = p.last_signal_at;
       n.last_traccar_at = p.last_traccar_at;
@@ -528,7 +579,7 @@ export class DemoBackend extends BaseBackend {
         if (Math.random() < 0.5) w.bots[p.id].target = this.safeSpot(destination(w.bots[p.id].pos, 150 + Math.random() * 200, Math.random() * 360));
       }
       const kb = w.players.find((p) => p.role === 'hunter' && p.user_id !== ME && p.status === 'active');
-      if (kb && Math.random() < 0.35) this.msg(pick(['Neuer Ping! Ich geh hin.', 'Der Kreis ist nah bei mir.', 'Lasst uns aufteilen.']), 'chat', 'hunters', kb);
+      if (kb && Math.random() < 0.35) this.msg(pick(['Neuer Ping! Ich geh hin.', 'Die Entfernung ist nah bei mir.', 'Lasst uns aufteilen.']), 'chat', 'hunters', kb);
     }
     this.finishIfDone();
   }
@@ -556,12 +607,19 @@ export class DemoBackend extends BaseBackend {
         if (b.target) this.step(b, b.target, 1.6, dt);
       } else if (huntOn) {
         // Sucher: zum neuesten Ping laufen, dort etwas suchen
-        const latest = [...w.pings].reverse().find((x) => x.mode !== 'none' && (!x.recipient_id || x.recipient_id === p.id) && w.players.find((h) => h.id === x.hider_id)?.status === 'active');
+        const latest = [...w.pings].reverse().find((x) => x.mode !== 'none' && !(x.mode === 'distance' && !x.recipient_id) && (!x.recipient_id || x.recipient_id === p.id) && w.players.find((h) => h.id === x.hider_id)?.status === 'active');
         if (latest && latest.id !== b.pingId) {
           b.pingId = latest.id;
-          b.target = latest.mode === 'direction'
-            ? destination({ lat: latest.ref_lat, lon: latest.ref_lon }, latest.distance_m, latest.bearing_deg)
-            : { lat: latest.lat, lon: latest.lon };
+          if (latest.mode === 'distance') {
+            // Nur die Entfernung bekannt: grob in Richtung des Gejagten loslaufen (Demo-Bots dürfen schummeln)
+            const hp = w.bots[latest.hider_id]?.pos || (w.players.find((h) => h.id === latest.hider_id)?.user_id === ME ? mePos : null);
+            const bearing = hp ? bearingDeg({ lat: latest.ref_lat, lon: latest.ref_lon }, hp) + (Math.random() - 0.5) * 70 : Math.random() * 360;
+            b.target = this.safeSpot(destination({ lat: latest.ref_lat, lon: latest.ref_lon }, latest.distance_m, bearing));
+          } else {
+            b.target = latest.mode === 'direction'
+              ? destination({ lat: latest.ref_lat, lon: latest.ref_lon }, latest.distance_m, latest.bearing_deg)
+              : { lat: latest.lat, lon: latest.lon };
+          }
         }
         if (b.target && distanceM(b.pos, b.target) < 15) b.target = this.safeSpot(destination(b.target, 40 + Math.random() * 80, Math.random() * 360));
         if (b.target) this.step(b, b.target, 2.3, dt);

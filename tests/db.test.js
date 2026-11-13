@@ -75,7 +75,7 @@ test('Nur der Host ändert Einstellungen und startet', async () => {
   await assert.rejects(db.rpc(U.mia, 'update_game', { p_game: G, p_patch: { area } }), /Nur der Host/);
   await assert.rejects(db.rpc(U.mia, 'start_game', { p_game: G }), /Nur der Host/);
   await assert.rejects(db.rpc(U.eric, 'start_game', { p_game: G }), /Spielgebiet/);
-  await db.rpc(U.eric, 'update_game', { p_game: G, p_patch: { settings: { ping_interval_s: 1, ping_mode: 'circle', joker_skip: true, joker_decoy: true }, area } });
+  await db.rpc(U.eric, 'update_game', { p_game: G, p_patch: { settings: { ping_interval_s: 1, ping_mode: 'circle' }, area } });
   const [g] = await db.select(U.eric, 'select settings, zone_stages from public.games where id = $1', [G]);
   assert.equal(g.settings.ping_interval_s, 60); // auf Minimum begrenzt
   assert.equal(g.zone_stages.length, 1);
@@ -228,13 +228,21 @@ test('Grenze: Strafe nur nach Ablauf des Countdowns, Ausscheiden beendet ggf. da
   assert.equal(lena.status, 'eliminated');
 });
 
-test('Joker: nur für aktive Gejagte, mit Abklingzeit', async () => {
+test('Joker der Gejagten: alle von Anfang an, jeder nur einmal pro Runde', async () => {
   await assert.rejects(db.rpc(U.eric, 'use_joker', { p_game: G, p_type: 'skip' }), /Nur aktive Gejagte/);
-  await assert.rejects(db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'double' }), /ausgeschaltet/);
+  await assert.rejects(db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'laser' }), /Unbekannter Joker/);
   const r = await db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'skip' });
   assert.equal(r.pending, 'skip');
+  await assert.rejects(db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'double' }), /schon ein Joker aktiv/);
+  // Zurücknehmen vor dem Ping gibt den Joker wieder frei
   await db.rpc(U.mia, 'cancel_joker', { p_game: G });
-  await assert.rejects(db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'decoy' }), /wieder verfügbar/);
+  assert.equal((await db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'skip' })).pending, 'skip');
+  // Ein Ping verbraucht ihn (hier von Hand), danach ist er für die Runde weg
+  await db.admin('update public.player_private set joker_pending = null where player_id = $1', [P.mia]);
+  await assert.rejects(db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'skip' }), /schon benutzt/);
+  // Die anderen Joker gehen weiterhin
+  assert.equal((await db.rpc(U.mia, 'use_joker', { p_game: G, p_type: 'decoy' })).pending, 'decoy');
+  await db.rpc(U.mia, 'cancel_joker', { p_game: G });
 });
 
 test('Pause und Fortsetzen verschieben die Zeiten', async () => {
@@ -336,4 +344,100 @@ test('Automatische Löschung nach Ablauf', async () => {
   assert.ok(n >= 1);
   assert.equal((await db.admin('select count(*)::int as n from public.locations where game_id = $1', [G]))[0].n, 0);
   assert.equal((await db.admin('select count(*)::int as n from public.messages where game_id = $1', [G]))[0].n, 0);
+});
+
+test('Sucher-Radar, Sound-Joker und gefundene Gejagte als Sucher', async () => {
+  const X = { host: uid(), h2: uid(), a: uid(), b: uid() };
+  const g = await db.rpc(X.host, 'create_game', { p_name: 'Hanna' });
+  const H = g.game_id;
+  const Q = { host: g.player_id };
+  Q.h2 = (await db.rpc(X.h2, 'join_game', { p_code: g.code, p_name: 'Hugo' })).player_id;
+  Q.a = (await db.rpc(X.a, 'join_game', { p_code: g.code, p_name: 'Anna' })).player_id;
+  Q.b = (await db.rpc(X.b, 'join_game', { p_code: g.code, p_name: 'Bert' })).player_id;
+  await db.rpc(X.host, 'set_role', { p_game: H, p_role: 'hunter' });
+  await db.rpc(X.h2, 'set_role', { p_game: H, p_role: 'hunter' });
+  await db.rpc(X.a, 'set_role', { p_game: H, p_role: 'hider' });
+  await db.rpc(X.b, 'set_role', { p_game: H, p_role: 'hider' });
+  await db.rpc(X.host, 'update_game', { p_game: H, p_patch: { settings: { headstart_s: 0 }, area: circleArea(LAT, LON, 800) } });
+  await db.rpc(X.host, 'start_game', { p_game: H });
+  const roleOf = async (id) => (await db.admin('select role, status, start_role from public.players where id = $1', [id]))[0];
+  assert.equal((await roleOf(Q.a)).start_role, 'hider');
+
+  // Ohne Standorte geht nichts
+  await assert.rejects(db.rpc(X.a, 'use_joker', { p_game: H, p_type: 'reveal' }), /kein Sucher-Standort/);
+  await assert.rejects(db.rpc(X.host, 'use_hunter_joker', { p_game: H, p_target: Q.a }), /noch keinen Standort/);
+  await storeLoc(Q.host, LAT, LON);
+  await storeLoc(Q.h2, LAT + 0.001, LON);
+  await storeLoc(Q.a, LAT + 0.002, LON + 0.001);
+  await storeLoc(Q.b, LAT - 0.002, LON + 0.001);
+
+  // Sucher-Radar: nur für den Gejagten, der ihn einsetzt, nur einmal
+  const rv = await db.rpc(X.a, 'use_joker', { p_game: H, p_type: 'reveal' });
+  assert.equal(rv.revealed, 2);
+  const ev = await db.select(X.a, 'select kind, positions from public.joker_events where game_id = $1', [H]);
+  assert.equal(ev.length, 1);
+  assert.equal(ev[0].positions.length, 2);
+  assert.ok(ev[0].positions.every((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon)));
+  assert.equal((await db.select(X.b, 'select * from public.joker_events where game_id = $1', [H])).length, 0, 'andere Gejagte sehen das Radar nicht');
+  assert.equal((await db.select(X.host, 'select * from public.joker_events where game_id = $1', [H])).length, 0, 'Sucher erfahren nichts vom Radar');
+  await assert.rejects(db.rpc(X.a, 'use_joker', { p_game: H, p_type: 'reveal' }), /schon benutzt/);
+  await assert.rejects(db.rpc(X.host, 'use_joker', { p_game: H, p_type: 'reveal' }), /Nur aktive Gejagte/);
+
+  // Sound-Joker: nur Sucher, nur auf aktive Gejagte, einmal pro Sucher
+  await assert.rejects(db.rpc(X.a, 'use_hunter_joker', { p_game: H, p_target: Q.b }), /Nur aktive Sucher/);
+  await assert.rejects(db.rpc(X.host, 'use_hunter_joker', { p_game: H, p_target: Q.h2 }), /nicht mehr im Spiel/);
+  const sj = await db.rpc(X.host, 'use_hunter_joker', { p_game: H, p_target: Q.a });
+  assert.ok(sj.ping_id);
+  await assert.rejects(db.rpc(X.host, 'use_hunter_joker', { p_game: H, p_target: Q.b }), /schon benutzt/);
+  const exact = async (user) => db.select(user, "select lat, lon, mode, kind from public.pings where game_id = $1 and kind = 'joker_sound'", [H]);
+  for (const u of [X.host, X.h2, X.a]) {
+    const rows = await exact(u);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].mode, 'exact');
+    assert.ok(Math.abs(rows[0].lat - (LAT + 0.002)) < 1e-5);
+  }
+  assert.equal((await exact(X.b)).length, 0, 'der andere Gejagte sieht den Sound-Ping nicht');
+  const sound = await db.select(X.a, "select caller_id from public.joker_events where game_id = $1 and kind = 'sound'", [H]);
+  assert.equal(sound.length, 1);
+  assert.equal(sound[0].caller_id, Q.host);
+  assert.equal((await db.select(X.b, "select * from public.joker_events where kind = 'sound'")).length, 0);
+  // Der zweite Sucher hat seinen eigenen Joker
+  assert.ok((await db.rpc(X.h2, 'use_hunter_joker', { p_game: H, p_target: Q.b })).ping_id);
+
+  // Teammitglieder sehen Standorte, bis jemand gefunden wird
+  const seenByB = async () => new Set((await db.select(X.b, 'select player_id from public.locations where game_id = $1', [H])).map((r) => r.player_id));
+  assert.ok((await seenByB()).has(Q.a));
+  await assert.rejects(db.rpc(X.a, 'become_hunter', { p_game: H }), /Nur gefundene/);
+  await db.rpc(X.a, 'mark_found', { p_game: H });
+  assert.ok(!(await seenByB()).has(Q.a), 'Gefundene geben ihren Standort nicht mehr weiter');
+  const stored = await storeLoc(Q.a, LAT + 0.01, LON);
+  assert.equal(stored.stored, false);
+  assert.equal((await db.admin('select count(*)::int as n from public.locations where player_id = $1', [Q.a]))[0].n, 1);
+
+  // Gefunden → Sucher
+  await assert.rejects(db.rpc(X.b, 'become_hunter', { p_game: H }), /Nur gefundene/);
+  await db.rpc(X.a, 'become_hunter', { p_game: H });
+  assert.deepEqual(await roleOf(Q.a), { role: 'hunter', status: 'active', start_role: 'hider' });
+  assert.equal((await storeLoc(Q.a, LAT + 0.01, LON)).stored, true);
+  const hostSees = new Set((await db.select(X.host, 'select player_id from public.locations where game_id = $1', [H])).map((r) => r.player_id));
+  assert.ok(hostSees.has(Q.a) && !hostSees.has(Q.b), 'als Sucher ist Anna für das Sucher-Team sichtbar, Bert nicht');
+  assert.equal((await db.select(X.a, "select * from public.messages where game_id = $1 and channel = 'hiders'", [H])).length, 0, 'Sucher lesen den Gejagten-Chat nicht');
+  // Anna hat als Sucherin einen eigenen Sound-Joker
+  assert.ok((await db.rpc(X.a, 'use_hunter_joker', { p_game: H, p_target: Q.b })).ping_id);
+
+  // Letzter Gejagter gefunden: Sucher gewinnen; Revanche beachtet die Start-Rolle
+  await db.rpc(X.b, 'mark_found', { p_game: H });
+  assert.equal((await db.admin('select winner from public.games where id = $1', [H]))[0].winner, 'hunters');
+  const r = await db.rpc(X.host, 'rematch', { p_game: H });
+  const roles = Object.fromEntries((await db.admin('select user_id, role from public.players where game_id = $1', [r.game_id])).map((p) => [p.user_id, p.role]));
+  assert.equal(roles[X.a], 'hunter', 'Anna war Gejagte und ist es in der Revanche nicht mehr');
+  assert.equal(roles[X.host], 'hider');
+});
+
+test('Sound-Joker braucht ein laufendes Spiel, Funktionen sind nur für Mitspieler', async () => {
+  const eve = uid();
+  await assert.rejects(db.rpc(eve, 'use_hunter_joker', { p_game: G, p_target: P.mia }), /nicht in diesem Spiel/);
+  await assert.rejects(db.rpc(eve, 'become_hunter', { p_game: G }), /nicht in diesem Spiel/);
+  await assert.rejects(db.rpc(ANON, 'use_hunter_joker', { p_game: G, p_target: P.mia }), /permission denied/);
+  await assert.rejects(db.select(U.eve, 'insert into public.joker_events (game_id, kind, hider_id) values ($1, \'sound\', $2)', [G, P.mia]), /permission denied/);
 });

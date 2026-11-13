@@ -49,6 +49,7 @@ create table if not exists public.players (
   is_host boolean not null default false,
   ready boolean not null default false,
   status text not null default 'active' check (status in ('active', 'found', 'eliminated', 'left')),
+  start_role text,
   found_at timestamptz,
   last_signal_at timestamptz,
   last_traccar_at timestamptz,
@@ -113,8 +114,8 @@ create table if not exists public.pings (
   seq int not null,
   hider_id uuid not null references public.players (id) on delete cascade,
   recipient_id uuid references public.players (id) on delete cascade,
-  kind text not null check (kind in ('regular', 'penalty', 'joker_skip')),
-  mode text not null check (mode in ('exact', 'circle', 'direction', 'none')),
+  kind text not null check (kind in ('regular', 'penalty', 'joker_skip', 'joker_sound')),
+  mode text not null check (mode in ('distance', 'exact', 'circle', 'direction', 'none')),
   lat double precision,
   lon double precision,
   radius_m real,
@@ -127,7 +128,7 @@ create table if not exists public.pings (
   dir_label text,
   age_s int,
   no_signal boolean not null default false,
-  joker text check (joker in ('skip', 'double')),
+  joker text check (joker in ('skip', 'double', 'sound')),
   created_at timestamptz not null default now()
 );
 create index if not exists pings_game_seq on public.pings (game_id, seq);
@@ -162,6 +163,30 @@ create table if not exists public.saved_areas (
   check (octet_length(area::text) < 200000 and octet_length(exclusions::text) < 200000)
 );
 create index if not exists saved_areas_owner on public.saved_areas (owner_id);
+
+-- Joker-Ereignisse, die nur ein Spieler sieht: "reveal" = Sucher-Radar (Positionen aller Sucher für den
+-- Gejagten, der den Joker einsetzt), "sound" = Sound-Joker (der Gejagte bekommt den Ton).
+create table if not exists public.joker_events (
+  id bigint generated always as identity primary key,
+  game_id uuid not null references public.games (id) on delete cascade,
+  kind text not null check (kind in ('reveal', 'sound')),
+  hider_id uuid not null references public.players (id) on delete cascade,
+  caller_id uuid references public.players (id) on delete set null,
+  positions jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists joker_events_game on public.joker_events (game_id, id);
+
+-- Updates für Datenbanken, die schon eine ältere Version dieser Datei enthalten (mehrfach ausführbar).
+alter table public.players add column if not exists start_role text;
+alter table public.players drop constraint if exists players_start_role_check;
+alter table public.players add constraint players_start_role_check check (start_role in ('hunter', 'hider'));
+alter table public.pings drop constraint if exists pings_kind_check;
+alter table public.pings add constraint pings_kind_check check (kind in ('regular', 'penalty', 'joker_skip', 'joker_sound'));
+alter table public.pings drop constraint if exists pings_mode_check;
+alter table public.pings add constraint pings_mode_check check (mode in ('distance', 'exact', 'circle', 'direction', 'none'));
+alter table public.pings drop constraint if exists pings_joker_check;
+alter table public.pings add constraint pings_joker_check check (joker in ('skip', 'double', 'sound'));
 
 -- ---------- Kleine Helfer ----------
 
@@ -204,16 +229,15 @@ create or replace function public.normalize_settings(p jsonb) returns jsonb
 language plpgsql immutable set search_path = '' as $$
 declare
   r jsonb := '{
-    "ping_interval_s": 300, "ping_mode": "circle", "ping_radius_m": 250, "headstart_s": 600,
+    "ping_interval_s": 300, "ping_mode": "distance", "ping_radius_m": 250, "headstart_s": 600,
     "duration_s": 3600, "role_mode": "choose", "boundary_penalty": "extra_ping", "boundary_warn_s": 30,
     "boundary_tolerance_m": 20, "accuracy_max_m": 50, "shrink_enabled": false, "shrink_every_s": 900,
-    "shrink_percent": 10, "joker_skip": false, "joker_double": false, "joker_decoy": false,
-    "joker_cooldown_s": 900, "show_teammates": true, "retention_h": 24 }'::jsonb;
+    "shrink_percent": 10, "show_teammates": true, "retention_h": 24 }'::jsonb;
   lim constant jsonb := '{
     "ping_interval_s": [60, 3600], "ping_radius_m": [50, 2000], "headstart_s": [0, 3600],
     "duration_s": [300, 21600], "boundary_warn_s": [5, 300], "boundary_tolerance_m": [0, 100],
-    "accuracy_max_m": [10, 200], "shrink_every_s": [60, 3600], "shrink_percent": [5, 50],
-    "joker_cooldown_s": [60, 3600], "retention_h": [1, 72] }'::jsonb;
+    "accuracy_max_m": [10, 200], "shrink_every_s": [60, 7200], "shrink_percent": [1, 90],
+    "retention_h": [1, 72] }'::jsonb;
   k text;
   v numeric;
 begin
@@ -225,10 +249,10 @@ begin
       r := jsonb_set(r, array[k], to_jsonb(round(v)::int));
     end if;
   end loop;
-  if p ->> 'ping_mode' in ('exact', 'circle', 'direction') then r := jsonb_set(r, '{ping_mode}', p -> 'ping_mode'); end if;
+  if p ->> 'ping_mode' in ('distance', 'exact', 'circle', 'direction') then r := jsonb_set(r, '{ping_mode}', p -> 'ping_mode'); end if;
   if p ->> 'role_mode' in ('choose', 'random') then r := jsonb_set(r, '{role_mode}', p -> 'role_mode'); end if;
   if p ->> 'boundary_penalty' in ('extra_ping', 'eliminate') then r := jsonb_set(r, '{boundary_penalty}', p -> 'boundary_penalty'); end if;
-  foreach k in array array['shrink_enabled', 'joker_skip', 'joker_double', 'joker_decoy', 'show_teammates'] loop
+  foreach k in array array['shrink_enabled', 'show_teammates'] loop
     if jsonb_typeof(p -> k) = 'boolean' then r := jsonb_set(r, array[k], p -> k); end if;
   end loop;
   return r;
@@ -279,6 +303,7 @@ language plpgsql stable security definer set search_path = '' as $$
 declare
   me public.players;
   them_role text;
+  them_status text;
   g_status text;
   show boolean;
 begin
@@ -287,8 +312,9 @@ begin
   if me.id = p_player then return true; end if;
   select status, coalesce((settings ->> 'show_teammates')::boolean, true) into g_status, show from public.games where id = p_game;
   if g_status not in ('running', 'paused') or not show or me.status <> 'active' then return false; end if;
-  select role into them_role from public.players where id = p_player and game_id = p_game;
-  return me.role in ('hunter', 'hider') and them_role = me.role;
+  select role, status into them_role, them_status from public.players where id = p_player and game_id = p_game;
+  -- Gefundene und ausgeschiedene Spieler geben ihren Standort nicht mehr weiter.
+  return me.role in ('hunter', 'hider') and them_role = me.role and them_status = 'active';
 end $$;
 
 create or replace function public.can_see_ping(p_game uuid, p_hider uuid, p_recipient uuid) returns boolean
@@ -326,6 +352,7 @@ alter table public.pings enable row level security;
 alter table public.ping_secrets enable row level security;
 alter table public.messages enable row level security;
 alter table public.saved_areas enable row level security;
+alter table public.joker_events enable row level security;
 
 drop policy if exists games_read on public.games;
 create policy games_read on public.games for select to authenticated
@@ -362,6 +389,10 @@ drop policy if exists messages_read on public.messages;
 create policy messages_read on public.messages for select to authenticated
   using (public.can_see_message(game_id, channel));
 
+drop policy if exists joker_events_read on public.joker_events;
+create policy joker_events_read on public.joker_events for select to authenticated
+  using (hider_id = public.member_player_id(game_id));
+
 drop policy if exists saved_areas_own on public.saved_areas;
 create policy saved_areas_own on public.saved_areas for all to authenticated
   using (owner_id = auth.uid()) with check (owner_id = auth.uid());
@@ -392,9 +423,9 @@ create trigger saved_areas_guard before insert or update on public.saved_areas
 
 -- Clients dürfen nur lesen (Ausnahme: eigene gespeicherte Gebiete).
 revoke all on public.games, public.players, public.player_private, public.user_trackers, public.locations,
-  public.pings, public.ping_secrets, public.messages, public.saved_areas from anon, authenticated;
+  public.pings, public.ping_secrets, public.messages, public.saved_areas, public.joker_events from anon, authenticated;
 grant select on public.games, public.players, public.player_private, public.user_trackers, public.locations,
-  public.pings, public.ping_secrets, public.messages to authenticated;
+  public.pings, public.ping_secrets, public.messages, public.joker_events to authenticated;
 grant select, insert, update, delete on public.saved_areas to authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 
@@ -744,7 +775,7 @@ begin
   if not exists (select 1 from public.players where game_id = p_game and status <> 'left' and role = 'hider') then
     raise exception 'Es braucht mindestens einen Gejagten.';
   end if;
-  update public.players set status = 'active', found_at = null where game_id = p_game and status <> 'left';
+  update public.players set status = 'active', found_at = null, start_role = role where game_id = p_game and status <> 'left';
   update public.player_private set
     kf_lat = null, kf_lon = null, kf_var = null, kf_at = null, kf_rejects = 0, inside = null, edge_dist_m = null,
     violation = null, violation_name = null, oob_since = null, oob_deadline = null, joker_pending = null, joker_used = '{}'::jsonb
@@ -849,40 +880,96 @@ begin
           case when me.is_host and p_channel = 'all' and coalesce(p_announce, false) then 'host' else 'chat' end, b);
 end $$;
 
+-- Joker der Gejagten. Jeder Joker lässt sich einmal pro Runde einsetzen (start_game setzt das zurück).
+-- skip / double / decoy wirken auf den nächsten Ping, reveal (Sucher-Radar) sofort.
 create or replace function public.use_joker(p_game uuid, p_type text) returns jsonb
 language plpgsql volatile security definer set search_path = '' as $$
 declare
   me public.players := public.my_player(p_game);
   g public.games;
   pv public.player_private;
-  cooldown int;
-  last_used timestamptz;
+  pos jsonb;
 begin
   select * into g from public.games where id = p_game;
   if g.status <> 'running' then raise exception 'Joker gibt es nur im laufenden Spiel.'; end if;
   if me.role <> 'hider' or me.status <> 'active' then raise exception 'Nur aktive Gejagte haben Joker.'; end if;
-  if p_type not in ('skip', 'double', 'decoy') then raise exception 'Unbekannter Joker.'; end if;
-  if not coalesce((g.settings ->> ('joker_' || p_type))::boolean, false) then raise exception 'Dieser Joker ist ausgeschaltet.'; end if;
+  if p_type not in ('skip', 'double', 'decoy', 'reveal') then raise exception 'Unbekannter Joker.'; end if;
   select * into pv from public.player_private where player_id = me.id for update;
-  if pv.joker_pending is not null then raise exception 'Für den nächsten Ping ist schon ein Joker aktiv.'; end if;
-  cooldown := coalesce((g.settings ->> 'joker_cooldown_s')::int, 900);
-  select max(value::text::timestamptz) into last_used
-    from jsonb_each_text(pv.joker_used) as t(key, value);
-  if last_used is not null and last_used + make_interval(secs => cooldown) > now() then
-    raise exception 'Joker wieder verfügbar in % min.', ceil(extract(epoch from (last_used + make_interval(secs => cooldown) - now())) / 60);
+  if pv.joker_used ? p_type then raise exception 'Diesen Joker hast du in dieser Runde schon benutzt.'; end if;
+  if p_type = 'reveal' then
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'player_id', h.id, 'name', h.name, 'lat', hp.kf_lat, 'lon', hp.kf_lon,
+             'age_s', greatest(0, extract(epoch from now() - hp.kf_at)::int)) order by h.joined_at), '[]'::jsonb)
+      into pos
+    from public.players h join public.player_private hp on hp.player_id = h.id
+    where h.game_id = p_game and h.role = 'hunter' and h.status = 'active'
+      and hp.kf_lat is not null and hp.kf_at > now() - interval '5 minutes';
+    if jsonb_array_length(pos) = 0 then raise exception 'Gerade ist kein Sucher-Standort bekannt.'; end if;
+    insert into public.joker_events (game_id, kind, hider_id, caller_id, positions)
+    values (p_game, 'reveal', me.id, me.id, pos);
+    update public.player_private set joker_used = joker_used || jsonb_build_object('reveal', now()) where player_id = me.id;
+    return jsonb_build_object('revealed', jsonb_array_length(pos));
   end if;
+  if pv.joker_pending is not null then raise exception 'Für den nächsten Ping ist schon ein Joker aktiv.'; end if;
   update public.player_private
     set joker_pending = p_type, joker_used = joker_used || jsonb_build_object(p_type, now())
   where player_id = me.id;
-  return jsonb_build_object('pending', p_type, 'available_again', now() + make_interval(secs => cooldown));
+  return jsonb_build_object('pending', p_type);
 end $$;
 
+-- Zurücknehmen vor dem nächsten Ping gibt den Joker wieder frei.
 create or replace function public.cancel_joker(p_game uuid) returns void
 language plpgsql volatile security definer set search_path = '' as $$
 declare me public.players := public.my_player(p_game);
 begin
-  -- Abbrechen gibt den Joker nicht zurück (Abklingzeit bleibt), verhindert aber die Wirkung.
-  update public.player_private set joker_pending = null where player_id = me.id;
+  update public.player_private
+    set joker_used = joker_used - joker_pending, joker_pending = null
+  where player_id = me.id and joker_pending is not null;
+end $$;
+
+-- Sound-Joker der Sucher (einmal pro Runde und Sucher): Beim gewählten Gejagten wird ein Ton abgespielt,
+-- und alle Sucher bekommen seinen genauen Standort, egal wo er ist.
+create or replace function public.use_hunter_joker(p_game uuid, p_target uuid) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare
+  me public.players := public.my_player(p_game);
+  g public.games;
+  t public.players;
+  pv public.player_private;
+  tv public.player_private;
+  v_ping bigint;
+begin
+  select * into g from public.games where id = p_game;
+  if g.status <> 'running' then raise exception 'Joker gibt es nur im laufenden Spiel.'; end if;
+  if me.role <> 'hunter' or me.status <> 'active' then raise exception 'Nur aktive Sucher haben diesen Joker.'; end if;
+  select * into t from public.players where id = p_target and game_id = p_game;
+  if not found or t.role <> 'hider' or t.status <> 'active' then raise exception 'Dieser Gejagte ist nicht mehr im Spiel.'; end if;
+  select * into pv from public.player_private where player_id = me.id for update;
+  if pv.joker_used ? 'sound' then raise exception 'Den Sound-Joker hast du in dieser Runde schon benutzt.'; end if;
+  select * into tv from public.player_private where player_id = t.id;
+  if tv.kf_lat is null then raise exception '% hat noch keinen Standort gesendet.', t.name; end if;
+  insert into public.pings (game_id, seq, hider_id, recipient_id, kind, mode, lat, lon, age_s, joker)
+  values (p_game, g.ping_seq, t.id, null, 'joker_sound', 'exact', round(tv.kf_lat::numeric, 6), round(tv.kf_lon::numeric, 6),
+          greatest(0, extract(epoch from now() - tv.kf_at)::int), 'sound')
+  returning id into v_ping;
+  insert into public.joker_events (game_id, kind, hider_id, caller_id) values (p_game, 'sound', t.id, me.id);
+  update public.player_private set joker_used = joker_used || jsonb_build_object('sound', now()) where player_id = me.id;
+  perform public.post_system(p_game, me.name || ' hat den Sound-Joker gegen ' || t.name || ' eingesetzt!');
+  return jsonb_build_object('ping_id', v_ping, 'target', t.id);
+end $$;
+
+-- Ein gefundener Gejagter jagt ab jetzt als Sucher mit (Rolle wechselt, "start_role" bleibt für das Ergebnis).
+create or replace function public.become_hunter(p_game uuid) returns void
+language plpgsql volatile security definer set search_path = '' as $$
+declare
+  me public.players := public.my_player(p_game);
+begin
+  if public.game_status(p_game) not in ('running', 'paused') then raise exception 'Das Spiel läuft gerade nicht.'; end if;
+  if me.role <> 'hider' or me.status <> 'found' then raise exception 'Nur gefundene Gejagte können Sucher werden.'; end if;
+  update public.players set role = 'hunter', status = 'active' where id = me.id;
+  update public.player_private set oob_since = null, oob_deadline = null, joker_pending = null, violation = null, violation_name = null
+  where player_id = me.id;
+  perform public.post_system(p_game, me.name || ' jagt jetzt als Sucher mit!');
 end $$;
 
 create or replace function public.rematch(p_game uuid) returns jsonb
@@ -907,7 +994,7 @@ begin
     order by p.joined_at
   loop
     perform public.add_player(g.id, r.user_id, r.name,
-      case r.role when 'hunter' then 'hider' when 'hider' then 'hunter' else 'random' end, r.is_host);
+      case coalesce(r.start_role, r.role) when 'hunter' then 'hider' when 'hider' then 'hunter' else 'random' end, r.is_host);
   end loop;
   update public.games set rematch_id = g.id where id = old.id;
   perform public.post_system(old.id, 'Revanche! Neues Spiel mit getauschten Rollen. Code: ' || g.code);
@@ -1176,7 +1263,8 @@ begin
     or (src = 'traccar' and (last_traccar_at is null or last_traccar_at < now() - interval '20 seconds'))
     or (src = 'web' and (last_web_at is null or last_web_at < now() - interval '20 seconds')));
   g_status := public.game_status(pl.game_id);
-  if g_status <> 'running' or coalesce((p ->> 'signal_only')::boolean, false) then
+  -- Gefundene und ausgeschiedene Spieler: Standort wird nicht mehr gespeichert und damit nicht weitergegeben.
+  if g_status <> 'running' or coalesce((p ->> 'signal_only')::boolean, false) or pl.status <> 'active' then
     return jsonb_build_object('ok', true, 'stored', false);
   end if;
   if jsonb_typeof(kf) = 'object' then
@@ -1245,6 +1333,7 @@ grant execute on function
   public.set_ready(uuid, boolean), public.kick_player(uuid), public.start_game(uuid), public.mark_found(uuid),
   public.pause_game(uuid, text), public.resume_game(uuid), public.end_game(uuid), public.leave_game(uuid),
   public.send_message(uuid, text, text, boolean), public.use_joker(uuid, text), public.cancel_joker(uuid),
+  public.use_hunter_joker(uuid, uuid), public.become_hunter(uuid),
   public.rematch(uuid), public.regenerate_tracker(), public.my_tracker(), public.get_replay(uuid), public.delete_my_data()
 to authenticated;
 
@@ -1256,7 +1345,7 @@ do $$
 declare t text;
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    foreach t in array array['games', 'players', 'player_private', 'pings', 'messages', 'locations'] loop
+    foreach t in array array['games', 'players', 'player_private', 'pings', 'messages', 'locations', 'joker_events'] loop
       if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
         execute format('alter publication supabase_realtime add table public.%I', t);
       end if;

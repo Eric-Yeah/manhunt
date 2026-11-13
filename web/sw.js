@@ -2,7 +2,7 @@
 // Eigene Dateien: erst Netz, dann Cache (Updates kommen sofort an).
 // Bibliotheken (vendor/): erst Cache. Supabase, Edge Functions und Kartenkacheln: nie cachen.
 // Bei jedem Update VERSION erhöhen (gleich wie in js/version.js): Nur so erkennt der Browser den neuen Worker.
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const CACHE = `manhunt-${VERSION}`;
 // Alle Module stehen hier, damit die App nach dem ersten Besuch auch offline startet
 // (tests/core.test.js prüft, dass keine Datei fehlt).
@@ -37,6 +37,8 @@ const CORE = [
   'js/ui/components.js',
   'js/ui/help.js',
   'js/ui/releases.js',
+  'js/ui/replay.js',
+  'js/ui/saved-replays.js',
   'js/version.js',
   'js/ui/map.js',
   'js/ui/scanner.js',
@@ -49,7 +51,10 @@ const CORE = [
   'js/util/dom.js',
   'js/util/format.js',
   'js/util/icons.js',
-  'js/util/storage.js'];
+  'js/util/replays.js',
+  'js/util/sound.js',
+  'js/util/storage.js',
+  'sounds/fahh.mp3'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

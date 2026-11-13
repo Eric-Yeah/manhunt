@@ -10,9 +10,13 @@ export function load(key, fallback = null) {
   }
 }
 
+/** Speichert einen Wert. Gibt false zurück, wenn es nicht ging (z. B. Speicher voll). */
 export function save(key, value) {
   try {
     if (value === undefined || value === null) localStorage.removeItem(PREFIX + key);
     else localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch { /* egal */ }
+    return true;
+  } catch {
+    return false;
+  }
 }

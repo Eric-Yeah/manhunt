@@ -102,7 +102,7 @@ test('Gebündelte Funktion "tick" läuft in Deno', { skip, timeout: 120_000 }, a
     const r = await fetch(base, { method: 'POST', headers: { 'x-tick-secret': 'deno-secret-0123456789' } });
     const j = await r.json();
     assert.equal(r.status, 200, JSON.stringify(j));
-    assert.equal(j.results[0].pings, 1);
+    assert.equal(j.results[0].pings, 2); // Meldung an den Gejagten + "kein Signal" für den Sucher ohne Standort
     const denied = await fetch(base, { method: 'POST', headers: { authorization: 'Bearer kaputt' } });
     assert.equal(denied.status, 401);
   });

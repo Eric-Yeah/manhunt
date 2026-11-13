@@ -8,7 +8,7 @@ import { header, chipGroup, seg, switchRow, tiles, range, pingModeText } from '.
 
 export function settingsScreen(ctx) {
   const game = ctx.snap().game;
-  let s = normalizeSettings(game.settings);
+  let s = normalizeSettings({ ...game.settings, ping_mode: 'distance' }); // andere Ping-Modi gibt es nur noch für alte Spiele
   const el = h('div', { class: 'scr' });
   const body = h('div', { class: 'stack', style: { gap: '14px' } });
 
@@ -53,16 +53,9 @@ export function settingsScreen(ctx) {
   }
 
   function modeCard() {
-    const opt = (mode, ic, title, sub) => h('button', { class: `opt${s.ping_mode === mode ? ' on' : ''}`, 'aria-pressed': String(s.ping_mode === mode), onclick: () => set({ ping_mode: mode }) },
-      h('span', { class: 'oi', html: icon(ic, 22) }),
-      h('span', { class: 'grow' }, h('b', {}, title), h('small', {}, sub)),
-      h('span', { class: `rad${s.ping_mode === mode ? ' on' : ''}` }));
     return h('div', { class: 'card' },
-      h('span', { class: 'lbl' }, 'Ping-Genauigkeit'),
-      opt('exact', 'dot', 'Exakter Punkt', 'Sehr schwer für Gejagte'),
-      opt('circle', 'circle', 'Ungefährer Kreis', 'Echte Position liegt irgendwo darin, nie in der Mitte'),
-      s.ping_mode === 'circle' ? h('div', { class: 'subchips' }, chipGroup({ options: [100, 250, 500].map((v) => ({ label: `${v} m`, value: v })), value: s.ping_radius_m, onChange: (v) => set({ ping_radius_m: v }), label: 'Kreisgröße' })) : null,
-      opt('direction', 'arrow', 'Richtung & Entfernung', 'z. B. „Nordost, ca. 400 m“ von deiner Position'));
+      h('div', { class: 'cl' }, h('span', { class: 'lbl' }, 'Was ein Ping zeigt'), h('span', { class: 'pill ac' }, 'Entfernung')),
+      h('p', { class: 'sub' }, 'Bei jedem Ping sieht jeder Sucher, wie viele Meter er vom Gejagten entfernt ist. Keine Richtung, kein Kreis, kein Punkt auf der Karte. Mit mehreren Suchern lässt sich der Gejagte durch Vergleichen eingrenzen.'));
   }
 
   function timeCard() {
@@ -96,26 +89,49 @@ export function settingsScreen(ctx) {
       h('p', { class: 'sub' }, `Gilt für Gejagte (auch in Sperrzonen). Erst wer mehr als ${s.boundary_tolerance_m} m plus GPS-Ungenauigkeit draußen ist, bekommt den Countdown.`));
   }
 
+  /** Schieberegler mit Plus/Minus-Knöpfen für feine Einstellungen. */
+  function fineSlider({ min, max, step = 1, value, label, scale, fmt, onChange }) {
+    const val = h('span', { class: 'val big' }, fmt(value));
+    const input = range({ min, max, step, value, label, onInput: (v) => { val.textContent = fmt(v); onChange(v); } });
+    input.classList.add('grow');
+    input.addEventListener('change', () => render());
+    const nudge = (d) => {
+      const v = Math.min(max, Math.max(min, Number(input.value) + d * step));
+      input.value = v;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('change'));
+    };
+    return h('div', { class: 'stack', style: { gap: '6px' } },
+      h('div', { class: 'cl' }, h('span', { class: 'sub' }, label), val),
+      h('div', { class: 'fine' },
+        h('button', { class: 'ib sm', 'aria-label': `${label}: eins weniger`, onclick: () => nudge(-1) }, '−'),
+        input,
+        h('button', { class: 'ib sm', 'aria-label': `${label}: eins mehr`, onclick: () => nudge(1) }, '+')),
+      h('div', { class: 'scale' }, scale.map((t) => h('span', {}, t))));
+  }
+
   function shrinkCard() {
+    const steps = Math.max(0, Math.ceil(s.duration_s / s.shrink_every_s) - 1);
     return h('div', { class: 'card' },
       switchRow({ title: 'Schrumpfende Zone', sub: s.shrink_enabled ? `Spielgebiet wird alle ${minutes(s.shrink_every_s)} um ${s.shrink_percent} % kleiner.` : 'Das Spielgebiet bleibt gleich groß.', value: s.shrink_enabled, iconName: 'shrink', onChange: (v) => set({ shrink_enabled: v }) }),
       s.shrink_enabled ? h('div', { class: 'stack' },
-        h('span', { class: 'sub' }, 'Alle'),
-        chipGroup({ options: [300, 600, 900, 1200].map((v) => ({ label: minutes(v), value: v })), value: s.shrink_every_s, onChange: (v) => set({ shrink_every_s: v }) }),
-        h('span', { class: 'sub' }, 'Um (Fläche)'),
-        chipGroup({ options: [10, 20, 30].map((v) => ({ label: `${v} %`, value: v })), value: s.shrink_percent, onChange: (v) => set({ shrink_percent: v }) }),
-        h('p', { class: 'sub' }, 'Die nächste Zone wird 2 Minuten vorher gestrichelt angezeigt. Eine Vorschau siehst du beim Spielgebiet.')) : null);
+        fineSlider({ min: 1, max: 120, value: Math.round(s.shrink_every_s / 60), label: 'Zone schrumpft alle', scale: ['1', '30', '60', '90', '120 min'], fmt: (v) => minutes(v * 60), onChange: (v) => { s.shrink_every_s = v * 60; } }),
+        fineSlider({ min: 1, max: 90, value: s.shrink_percent, label: 'Fläche pro Schritt kleiner um', scale: ['1', '25', '50', '75', '90 %'], fmt: (v) => `${v} %`, onChange: (v) => { s.shrink_percent = v; } }),
+        h('p', { class: 'sub' }, `Bei ${minutes(s.duration_s)} Spieldauer schrumpft die Zone etwa ${steps}×. Die nächste Zone wird 2 Minuten vorher gestrichelt angezeigt. Eine Vorschau siehst du beim Spielgebiet.`)) : null);
   }
 
   function jokerCard() {
+    const row = (ic, title, sub) => h('div', { class: 'row' }, h('div', { class: 'ico-b sm', html: icon(ic, 18) }), h('div', { class: 'grow' }, h('b', {}, title), h('p', { class: 'sub' }, sub)));
     return h('div', { class: 'card' },
-      h('div', { class: 'cl' }, h('span', { class: 'lbl' }, 'Joker für Gejagte'), h('span', { class: 'pill' }, 'optional')),
-      switchRow({ title: 'Ping überspringen', sub: 'Der nächste Ping fällt aus.', value: s.joker_skip, iconName: 'skip', onChange: (v) => set({ joker_skip: v }) }),
-      switchRow({ title: 'Doppelter Kreis', sub: 'Der nächste Ping ist doppelt so ungenau.', value: s.joker_double, iconName: 'double', onChange: (v) => set({ joker_double: v }) }),
-      switchRow({ title: 'Falscher Ort', sub: 'Der nächste Ping zeigt einen erfundenen Ort in 300 bis 900 m Entfernung. Wird erst nach dem Spiel verraten.', value: s.joker_decoy, iconName: 'ghost', onChange: (v) => set({ joker_decoy: v }) }),
-      (s.joker_skip || s.joker_double || s.joker_decoy) ? h('div', { class: 'stack' },
-        h('div', { class: 'cl' }, h('span', { class: 'sub' }, 'Abklingzeit pro Gejagtem'), h('span', { class: 'val' }, minutes(s.joker_cooldown_s))),
-        chipGroup({ options: [300, 600, 900, 1800].map((v) => ({ label: minutes(v), value: v })), value: s.joker_cooldown_s, onChange: (v) => set({ joker_cooldown_s: v }) })) : null);
+      h('div', { class: 'cl' }, h('span', { class: 'lbl' }, 'Joker'), h('span', { class: 'pill' }, 'immer an')),
+      h('p', { class: 'sub' }, 'Alle Joker gibt es von Anfang an. Jeder lässt sich pro Spieler einmal pro Runde einsetzen.'),
+      h('span', { class: 'lbl' }, 'Gejagte'),
+      row('skip', 'Ping überspringen', 'Der nächste Ping fällt aus.'),
+      row('double', 'Ungenauer Ping', 'Die Entfernung ist stark verrauscht.'),
+      row('ghost', 'Falsche Entfernung', 'Der Ping misst zu einem erfundenen Ort. Wird erst nach dem Spiel verraten.'),
+      row('target', 'Sucher-Radar', 'Zeigt sofort, wo alle Sucher gerade genau sind.'),
+      h('span', { class: 'lbl' }, 'Sucher'),
+      row('megaphone', 'Sound-Joker', 'Spielt bei einem Gejagten einen Ton ab und zeigt allen Suchern seinen genauen Standort.'));
   }
 
   function advancedCard() {
@@ -142,7 +158,7 @@ export function settingsScreen(ctx) {
       intervalCard(), modeCard(), tc, rolesCard(), boundaryCard(), shrinkCard(), jokerCard(), advancedCard(),
       tiles([
         { lbl: 'Ping', v: minutes(s.ping_interval_s) },
-        { lbl: s.ping_mode === 'circle' ? 'Kreis' : 'Modus', v: s.ping_mode === 'circle' ? `${s.ping_radius_m} m` : s.ping_mode === 'exact' ? 'Punkt' : 'Richtung' },
+        { lbl: 'Ping zeigt', v: 'Meter' },
         { lbl: 'Dauer', v: minutes(s.duration_s) },
       ], 'on-bg'),
       h('p', { class: 'hint' }, pingModeText(s)),

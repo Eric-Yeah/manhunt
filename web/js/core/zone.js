@@ -3,6 +3,7 @@
 import { turf, areaM2, fmtKm2 } from './geo.js';
 
 export const MIN_STAGE_M2 = 10_000; // kleiner wird die Zone nicht (0,01 km²)
+export const MAX_STAGES = 60; // so viele Stufen (inkl. Start) akzeptiert die Datenbank
 
 /**
  * @param {object} area  GeoJSON-Feature (Polygon), properties.shape = 'circle' | 'polygon'
@@ -20,6 +21,10 @@ export function computeZoneStages(area, s) {
   let lastBuffer = 0;
 
   for (let k = 1; k * every < s.duration_s; k++) {
+    if (stages.length >= MAX_STAGES) {
+      warnings.push(`Mehr als ${MAX_STAGES - 1} Schrumpf-Stufen sind nicht möglich. Ab Stufe ${MAX_STAGES - 1} bleibt die Zone gleich groß. Wähle ein längeres Intervall, wenn sie bis zum Ende schrumpfen soll.`);
+      break;
+    }
     const target = a0 * factor ** k;
     if (target < MIN_STAGE_M2) {
       warnings.push(`Ab Stufe ${k} wäre die Zone kleiner als ${fmtKm2(MIN_STAGE_M2)}. Sie schrumpft deshalb nur bis Stufe ${k - 1}.`);

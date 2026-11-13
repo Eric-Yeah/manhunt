@@ -5,6 +5,7 @@ import { dateTime, minutes } from '../../util/format.js';
 import { privacyBody } from '../components.js';
 import { load } from '../../util/storage.js';
 import { showAllReleases } from '../releases.js';
+import { savedReplaysCard } from '../saved-replays.js';
 import { VERSION } from '../../version.js';
 
 export function startScreen(ctx) {
@@ -100,6 +101,7 @@ export function startScreen(ctx) {
       h('div', { class: 'row between' }, h('b', {}, last.title || 'Runde'),
         h('span', { class: `pill ${last.winner === 'hiders' ? 'hid' : last.winner === 'hunters' ? 'ac' : ''}` }, last.winner === 'hiders' ? 'Gejagte gewonnen' : last.winner === 'hunters' ? 'Sucher gewonnen' : 'Abgebrochen')),
       h('p', { class: 'sub' }, `${minutes(Math.round((last.duration_ms || 0) / 1000))} · ${last.players} Spieler · ${dateTime(last.at)}`)) : null,
+    savedReplaysCard(),
     h('div', { class: 'stack', style: { gap: '2px', alignItems: 'center' } },
       h('button', { class: 'linkish', onclick: () => ctx.openHelp() }, 'Tracking im Hintergrund einrichten'),
       h('button', { class: 'linkish', onclick: () => modal({ title: 'Wer sieht was?', body: privacyBody({}) }) }, 'Wer sieht was? (Datenschutz)'),

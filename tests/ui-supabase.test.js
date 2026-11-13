@@ -105,7 +105,7 @@ test('Zwei Spieler: Lobby, Start, Standort, Ping, Chat, Gefunden, Ergebnis', { s
     await host.waitForTimeout(1000);
     pings = await db.admin("select p.mode, p.seq from public.pings p join public.players h on h.id = p.hider_id where h.name = 'Mia' and p.seq > $1 order by p.id desc limit 1", [seq]);
   }
-  assert.equal(pings[0]?.mode, 'circle', 'neuer Ping mit echter (verfremdeter) Position');
+  assert.equal(pings[0]?.mode, 'distance', 'neuer Ping zeigt nur die Entfernung');
   await host.waitForSelector(`.hrow:has-text("#${pings[0].seq}")`, { timeout: 15_000 });
   await host.waitForTimeout(800);
   await host.shot('ping');
@@ -136,6 +136,11 @@ test('Zwei Spieler: Lobby, Start, Standort, Ping, Chat, Gefunden, Ergebnis', { s
   await host.waitForSelector('text=Sucher gewinnen', { timeout: 15_000 });
   await host.waitForSelector('.replay .leaflet-container', { timeout: 15_000 });
   await host.shot('ergebnis');
+  // Die Wiederholung wird auf dem Gerät gespeichert (bleibt nach dem Verlassen der Lobby abrufbar)
+  await host.waitForSelector('text=auf deinem Handy gespeichert', { timeout: 15_000 });
+  const saved = JSON.parse(await host.evaluate(() => localStorage.getItem('manhunt:replays')));
+  assert.equal(saved.length, 1);
+  assert.ok(saved[0].tracks.length >= 1 && saved[0].players.length === 2 && saved[0].area, 'Wiederholung enthält Routen, Spieler und Gebiet');
   // Nach Spielende darf Eric den Gejagten-Chat lesen
   await host.btn('Chat ansehen').click();
   await host.getByRole('tab', { name: 'Gejagte' }).click();

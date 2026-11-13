@@ -1,10 +1,23 @@
 // Version und Release Notes. Bei jedem Update: VERSION hier, in sw.js und in package.json erhöhen
 // und oben in RELEASES einen Eintrag ergänzen (tests/core.test.js prüft, dass alles zusammenpasst).
 // Die neue Version lädt sich die App von selbst nach (Service Worker) und zeigt danach die Neuerungen.
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 /** Neueste Version zuerst. items: kurze Sätze für Spieler, nicht für Entwickler. */
 export const RELEASES = [
+  {
+    version: '0.3.0',
+    date: '2026-11-13',
+    items: [
+      'Neu: Ein Ping zeigt jetzt nur noch die Entfernung in Metern. Jeder Sucher sieht, wie weit er selbst vom Gejagten weg ist. Keine Richtung, kein Kreis.',
+      'Neu: Alle Joker gibt es von Anfang an, jeden einmal pro Runde. Gejagte haben „Ping überspringen“, „Ungenauer Ping“, „Falsche Entfernung“ und das neue Sucher-Radar, das zeigt, wo alle Sucher gerade genau sind.',
+      'Neu: Sucher haben den Sound-Joker. Er spielt bei einem Gejagten einen Ton ab und zeigt allen Suchern seinen genauen Standort, egal wo er ist. Du setzt ihn im Ping-Menü ein.',
+      'Neu: Wer gefunden wurde, kann als Sucher mitjagen. Gefundene geben ihren Standort nicht mehr weiter.',
+      'Neu: Wiederholungen werden auf deinem Handy gespeichert. Du findest sie auf der Startseite, auch nachdem du die Lobby verlassen hast.',
+      'Behoben: Das Ping-Menü lässt sich jetzt nach unten wegwischen und wieder hochziehen.',
+      'Neu: Die schrumpfende Zone stellst du mit Schiebereglern ein: Zeit von 1 bis 120 Minuten, Fläche von 1 bis 90 %. Mit + und − geht es Schritt für Schritt.',
+    ],
+  },
   {
     version: '0.2.0',
     date: '2026-10-25',

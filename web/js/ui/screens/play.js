@@ -2,9 +2,10 @@
 import { h, toast, confirmDialog, modal, setChildren, vibrate, busy } from '../../util/dom.js';
 import { icon, ringSvg } from '../../util/icons.js';
 import { mmss, ago, meters, minutes, ts } from '../../util/format.js';
-import { normalizeSettings, zoneIndexAt, zoneGeometryAt, JOKERS } from '../../core/engine.js';
-import { boundaryStatus, bandSector } from '../../core/geo.js';
-import { directionText } from '../../core/ping.js';
+import { normalizeSettings, zoneIndexAt, zoneGeometryAt, HIDER_JOKERS, HUNTER_JOKERS, jokerUsed, startRole } from '../../core/engine.js';
+import { boundaryStatus, bandSector, destination } from '../../core/geo.js';
+import { directionText, distanceText, isNotice } from '../../core/ping.js';
+import { playAlarm } from '../../util/sound.js';
 import { createMap, outsideMask, polygonLayer, dotMarker, labelMarker, fitGeometry } from '../map.js';
 import { holdButton, signalEl, avatar, ROLE, demoBanner } from '../components.js';
 
@@ -13,7 +14,7 @@ export function playScreen(ctx) {
   const el = h('div', { class: 'mapscr' });
   const mapEl = h('div', { class: 'map' });
   const hud = h('div', { class: 'hudtop', 'aria-live': 'polite' });
-  const fabs = h('div', { class: 'fabs', style: { top: 'calc(200px + var(--sat))' } });
+  const fabs = h('div', { class: 'fabs' });
   const sheet = h('div', { class: 'sheet' });
   const veil = h('div', { class: 'paused-veil', hidden: true });
   el.append(mapEl, hud, fabs, sheet, veil);
@@ -25,11 +26,16 @@ export function playScreen(ctx) {
   const exclG = L.layerGroup().addTo(map);
   const pingG = L.layerGroup().addTo(map);
   const mateG = L.layerGroup().addTo(map);
+  const revG = L.layerGroup().addTo(map);
   const meG = L.layerGroup().addTo(map);
   let meMarker = null, meAcc = null;
+  let meRole = first.me?.role;
   let keys = {};
+  // Ping-Menü: 'normal' (Standard), 'open' (alles zeigen) oder 'peek' (nach unten weggewischt, nur der Griff bleibt)
+  let sheetState = 'normal';
   let sheetOpen = false;
   let lastPingId = null;
+  let lastEventId = (first.events || []).reduce((m, e) => Math.max(m, e.id), 0);
   let lastStatus = first.game.status;
   let snap = first;
 
@@ -51,19 +57,81 @@ export function playScreen(ctx) {
     },
   });
   const holdHint = h('p', { class: 'hint' }, 'Gedrückt halten (2 s) zum Bestätigen. Es gibt kein automatisches Fangen per GPS.');
-  const grab = h('button', { class: 'grab', 'aria-label': 'Details ein- oder ausklappen', onclick: () => { sheetOpen = !sheetOpen; sheet.classList.toggle('open', sheetOpen); fitAttr(); } });
-  const sheetHead = h('div', { class: 'stack' });
+  const grab = h('button', { class: 'grab', 'aria-label': 'Ping-Menü: antippen zum Ein- und Ausklappen, nach unten wischen zum Wegschieben' }, h('span', { class: 'peek-label' }, 'Hochwischen für Pings & Joker'));
+  const sheetHead = h('div', { class: 'stack', style: { touchAction: 'none' } });
+  const foundBox = h('div', { class: 'stack' });
   const tileBox = h('div', { class: 'tiles3' });
   const histBox = h('div', { class: 'stack' });
   const jokerBox = h('div', { class: 'stack' });
   const moreList = h('div', { class: 'stack' });
   const moreActions = h('div', { class: 'stack' });
   const moreBox = h('div', { class: 'stack more-only', style: { flexDirection: 'column' } }, moreList, moreActions);
-  sheet.append(grab, sheetHead, tileBox, histBox, jokerBox, h('div', { class: 'stack hider-only' }, hold, holdHint), moreBox);
+  sheet.append(grab, sheetHead, tileBox, histBox, jokerBox, foundBox, h('div', { class: 'stack hider-only' }, hold, holdHint), moreBox);
 
-  const fitAttr = () => mapEl.style.setProperty('--attr-offset', `${sheet.offsetHeight}px`);
-  const ro = new ResizeObserver(fitAttr);
+  const PEEK_PX = 54;
+  const hiddenOffset = () => Math.max(0, sheet.offsetHeight - PEEK_PX);
+  const fitAttr = () => {
+    const visible = sheetState === 'peek' ? PEEK_PX : sheet.offsetHeight;
+    mapEl.style.setProperty('--attr-offset', `${visible}px`);
+    el.style.setProperty('--sheet-h', `${visible}px`);
+  };
+  function applySheet() {
+    sheetOpen = sheetState === 'open';
+    sheet.classList.remove('dragging');
+    sheet.classList.toggle('open', sheetOpen);
+    sheet.classList.toggle('peek', sheetState === 'peek');
+    sheet.style.transform = sheetState === 'peek' ? `translateY(${hiddenOffset()}px)` : '';
+    fitAttr();
+  }
+  const ro = new ResizeObserver(() => {
+    if (sheetState === 'peek' && !sheet.classList.contains('dragging')) sheet.style.transform = `translateY(${hiddenOffset()}px)`;
+    fitAttr();
+  });
   ro.observe(sheet);
+
+  // Wischen am Griff und am Kopf des Menüs: nach unten wegschieben, nach oben aufziehen. Antippen des Griffs klappt auf/zu.
+  let drag = null;
+  const dragDown = (e) => {
+    if (e.button > 0 || drag) return;
+    drag = { id: e.pointerId, y0: e.clientY, t0: performance.now(), moved: false, base: sheetState === 'peek' ? hiddenOffset() : 0, el: e.currentTarget };
+  };
+  const dragMove = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dy = e.clientY - drag.y0;
+    if (!drag.moved) {
+      if (Math.abs(dy) < 6) return;
+      drag.moved = true;
+      try { drag.el.setPointerCapture(e.pointerId); } catch { /* egal */ }
+      sheet.classList.add('dragging');
+    }
+    sheet.style.transform = `translateY(${Math.min(hiddenOffset(), Math.max(0, drag.base + dy))}px)`;
+  };
+  const dragEnd = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    const dy = e.clientY - d.y0;
+    const v = dy / Math.max(1, performance.now() - d.t0); // px pro ms, positiv = nach unten
+    if (e.type === 'pointercancel') { /* nichts ändern */ }
+    else if (!d.moved) { if (d.el === grab) sheetState = sheetState === 'normal' ? 'open' : 'normal'; }
+    else if (sheetState === 'peek') { if (dy < -30 || v < -0.4) sheetState = 'normal'; }
+    else if (sheetState === 'normal') { if (dy > 60 || v > 0.5) sheetState = 'peek'; else if (dy < -50 || v < -0.5) sheetState = 'open'; }
+    else if (dy > 160 || v > 1.1) sheetState = 'peek';
+    else if (dy > 50 || v > 0.4) sheetState = 'normal';
+    applySheet();
+  };
+  for (const target of [grab, sheetHead]) {
+    target.addEventListener('pointerdown', dragDown);
+    target.addEventListener('pointermove', dragMove);
+    target.addEventListener('pointerup', dragEnd);
+    target.addEventListener('pointercancel', dragEnd);
+  }
+  grab.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    sheetState = sheetState === 'normal' ? 'open' : 'normal';
+    applySheet();
+  });
 
   const chatFab = h('button', { class: 'fab', 'aria-label': 'Chat öffnen', onclick: () => ctx.openChat() });
   fabs.append(
@@ -111,8 +179,9 @@ export function playScreen(ctx) {
 
   function pingText(p) {
     if (p.kind === 'joker_skip') return 'übersprungen (Joker)';
-    if (p.no_signal || p.mode === 'none') return 'kein Signal';
-    let t = p.mode === 'exact' ? 'exakter Punkt' : p.mode === 'circle' ? `Kreis ~${Math.round(p.radius_m)} m` : directionText(p);
+    if (p.kind === 'joker_sound') return 'Sound-Joker: genauer Standort';
+    if (p.no_signal || p.mode === 'none') return p.recipient_id ? 'dein Standort fehlte' : 'kein Signal';
+    let t = p.mode === 'distance' ? distanceText(p) : p.mode === 'exact' ? 'exakter Punkt' : p.mode === 'circle' ? `Kreis ~${Math.round(p.radius_m)} m` : directionText(p);
     if (p.joker === 'double') t += ' (Joker)';
     if (p.ref_is_center) t += ' vom Mittelpunkt';
     if (p.age_s > 120) t += ` · Position ${minutes(p.age_s)} alt`;
@@ -150,8 +219,8 @@ export function playScreen(ctx) {
   function drawPings() {
     const me = snap.me;
     const ended = snap.game.status === 'ended';
-    const visible = snap.pings.filter((p) => p.mode !== 'none');
-    const key = `${visible.length}|${visible.at(-1)?.id}|${Math.floor(ctx.now() / 30000)}`;
+    const visible = snap.pings.filter((p) => p.mode !== 'none' && !isNotice(p));
+    const key = `${visible.length}|${visible.at(-1)?.id}|${me.role}|${Math.floor(ctx.now() / 30000)}`;
     if (keys.pings === key) return;
     keys.pings = key;
     pingG.clearLayers();
@@ -166,13 +235,21 @@ export function playScreen(ctx) {
         const own = p.hider_id === me.id;
         const age = now - ts(p.created_at);
         const cls = ['lf-ping', latest ? (age < 90_000 ? 'pulse' : '') : 'old', own ? 'own' : '', decoys.has(p.id) && (own || ended) ? 'decoy' : ''].join(' ');
-        const label = `#${p.seq}${p.kind === 'penalty' ? '+' : ''} ${own ? 'du' : nameOf(hid)}${decoys.has(p.id) && (own || ended) ? ' (Täuschung)' : ''}`;
-        if (p.mode === 'circle') {
+        const sound = p.kind === 'joker_sound';
+        const label = sound ? `🔊 ${own ? 'du' : nameOf(hid)}` : `#${p.seq}${p.kind === 'penalty' ? '+' : ''} ${own ? 'du' : nameOf(hid)}${decoys.has(p.id) && (own || ended) ? ' (Täuschung)' : ''}`;
+        if (p.mode === 'distance') {
+          // Nur die Entfernung ist bekannt: Ring um die Position des Suchers beim Ping
+          const ref = { lat: p.ref_lat, lon: p.ref_lon };
+          L.circle([ref.lat, ref.lon], { radius: Math.max(2, p.distance_m), className: `lf-dist${latest ? (age < 90_000 ? ' pulse' : '') : ' old'}${decoys.has(p.id) && ended ? ' decoy' : ''}`, interactive: false }).addTo(pingG);
+          labelMarker(destination(ref, Math.max(2, p.distance_m), 0), `${label}: ${distanceText(p)}`, latest ? 'ac' : 'mut').addTo(pingG);
+          if (latest) dotMarker(ref, '', 'stale').addTo(pingG);
+        } else if (p.mode === 'circle') {
           L.circle([p.lat, p.lon], { radius: p.radius_m, className: cls, interactive: false }).addTo(pingG);
           if (latest || me.role === 'hunter') labelMarker(p, label, latest ? 'ac' : 'mut').addTo(pingG);
         } else if (p.mode === 'exact') {
           dotMarker(p, 'hider', latest ? '' : 'stale').addTo(pingG);
           labelMarker(p, label, latest ? 'hid' : 'mut', -24).addTo(pingG);
+          if (sound && latest) L.circle([p.lat, p.lon], { radius: 12, className: 'lf-ping pulse', interactive: false }).addTo(pingG);
         } else if (p.mode === 'direction') {
           const ref = { lat: p.ref_lat, lon: p.ref_lon };
           const half = (p.sector_deg || 45) / 2;
@@ -194,7 +271,7 @@ export function playScreen(ctx) {
     const me = snap.me;
     const now = ctx.now();
     const entries = Object.entries(snap.teammates || {}).filter(([id]) => id !== me.id);
-    const key = entries.map(([id, t]) => `${id}:${t.at}`).join('|') + `|${Math.floor(now / 30000)}`;
+    const key = entries.map(([id, t]) => `${id}:${t.at}`).join('|') + `|${me.role}|${Math.floor(now / 30000)}`;
     if (keys.mates === key) return;
     keys.mates = key;
     mateG.clearLayers();
@@ -204,6 +281,24 @@ export function playScreen(ctx) {
       const stale = now - t.at > 120_000;
       dotMarker(t, `mate ${p.role === 'hider' ? 'hider' : ''}`, stale ? 'stale' : '').addTo(mateG);
       labelMarker(t, `${p.name}${stale ? ` · ${ago(now - t.at)}` : ''}`, p.role === 'hider' ? 'hid' : 'ac', -22).addTo(mateG);
+    }
+  }
+
+  // Sucher-Radar: Momentaufnahme der Sucher-Positionen (nur für den Gejagten, der den Joker eingesetzt hat)
+  function drawReveal() {
+    const ev = [...(snap.events || [])].reverse().find((e) => e.kind === 'reveal');
+    const now = ctx.now();
+    const age = ev ? now - ts(ev.created_at) : Infinity;
+    const show = !!ev && snap.me.role === 'hider' && age < 5 * 60_000;
+    const key = show ? `${ev.id}|${Math.floor(now / 10000)}` : 'none';
+    if (keys.rev === key) return;
+    keys.rev = key;
+    revG.clearLayers();
+    if (!show) return;
+    for (const pos of ev.positions || []) {
+      const t = age + (pos.age_s || 0) * 1000;
+      dotMarker(pos, 'mate', t > 120_000 ? 'stale' : '').addTo(revG);
+      labelMarker(pos, `${pos.name} · ${ago(t)}`, 'ac', -22).addTo(revG);
     }
   }
 
@@ -252,7 +347,7 @@ export function playScreen(ctx) {
     if (out) {
       parts.push(h('div', { class: 'card tight', style: { boxShadow: 'var(--shadow)' } },
         h('b', {}, me.status === 'found' ? 'Du wurdest gefunden.' : me.status === 'eliminated' ? 'Du bist ausgeschieden.' : 'Du hast das Spiel verlassen.'),
-        h('small', {}, 'Du kannst weiter zuschauen und chatten.')));
+        h('small', {}, me.status === 'found' ? 'Du kannst zuschauen und chatten – oder unten als Sucher mitjagen.' : 'Du kannst weiter zuschauen und chatten.')));
     } else {
       const total = inHead ? Math.max(1, s.headstart_s * 1000) : s.ping_interval_s * 1000;
       const left = Math.max(0, (inHead ? huntStart : nextPing) - now);
@@ -264,8 +359,9 @@ export function playScreen(ctx) {
     }
 
     if (isHunter) {
-      const last = [...snap.pings].reverse().find((p) => p.kind !== 'penalty') || snap.pings.at(-1);
-      parts.push(h('span', { class: 'pill glass' }, last ? `Letzter Ping #${last.seq} ${ago(ctx.now() - ts(last.created_at))} · ${pingText(last)}` : inHead ? 'Die Gejagten verstecken sich gerade.' : 'Noch kein Ping'));
+      const real = snap.pings.filter((p) => !isNotice(p) && p.kind !== 'joker_sound');
+      const last = [...real].reverse().find((p) => p.kind !== 'penalty') || real.at(-1);
+      parts.push(h('span', { class: 'pill glass' }, last ? `Letzter Ping #${last.seq} ${ago(ctx.now() - ts(last.created_at))} · ${nameOf(last.hider_id)} ${pingText(last)}` : inHead ? 'Die Gejagten verstecken sich gerade.' : 'Noch kein Ping'));
     } else {
       const pos = ctx.pos();
       const zone = zoneGeometryAt(gms(g), now);
@@ -287,14 +383,48 @@ export function playScreen(ctx) {
     setChildren(hud, ...parts);
   }
 
+  async function clickJoker(type, j, on) {
+    if (on) {
+      if (await confirmDialog('Joker zurücknehmen?', 'Du kannst ihn danach noch einmal einsetzen.', 'Zurücknehmen')) await ctx.backend.cancelJoker();
+      return;
+    }
+    if (type === 'sound') return soundJoker();
+    if (type === 'reveal') {
+      if (!(await confirmDialog('Sucher-Radar einsetzen?', `${j.sub} Das geht nur einmal pro Runde.`, 'Einsetzen'))) return;
+      await ctx.backend.useJoker('reveal');
+      toast('Sucher-Radar: Die Sucher sind auf der Karte markiert.', 'ok');
+      return;
+    }
+    if (!(await confirmDialog(`${j.label} einsetzen?`, `${j.sub} Das geht nur einmal pro Runde.`, 'Einsetzen'))) return;
+    await ctx.backend.useJoker(type);
+    toast('Joker aktiv');
+  }
+
+  async function soundJoker() {
+    const targets = snap.players.filter((p) => p.role === 'hider' && p.status === 'active');
+    if (!targets.length) throw new Error('Es ist kein Gejagter mehr frei.');
+    const choice = await modal({
+      title: 'Sound-Joker einsetzen',
+      body: 'Bei wem soll der Ton abgespielt werden? Alle Sucher sehen danach seinen genauen Standort, egal wo er ist. Das geht nur einmal pro Runde.',
+      buttons: [...targets.map((t) => ({ label: t.name, value: t.id, kind: 'pri' })), { label: 'Abbrechen', value: null, kind: 'ghost' }],
+    });
+    if (!choice) return;
+    await ctx.backend.useHunterJoker(choice);
+    toast('Sound-Joker eingesetzt. Der genaue Standort erscheint auf der Karte.', 'ok');
+    if (ctx.backend.mode === 'demo') {
+      toast('Demo: So klingt der Ton beim Gejagten.');
+      playAlarm();
+    }
+  }
+
   function renderSheet() {
     const g = snap.game, me = snap.me, pv = snap.priv;
     if (!me) return;
     const s = normalizeSettings(g.settings);
     const now = effNow();
     const isHider = me.role === 'hider';
-    const hiders = snap.players.filter((p) => p.role === 'hider' && p.status !== 'left');
-    const free = hiders.filter((p) => p.status === 'active').length;
+    const hiders = snap.players.filter((p) => startRole(p) === 'hider' && p.status !== 'left');
+    const free = hiders.filter((p) => p.role === 'hider' && p.status === 'active').length;
     const timeLeft = Math.max(0, ts(g.ends_at) - now);
     const inHead = now < ts(g.hunt_starts_at);
 
@@ -321,49 +451,60 @@ export function playScreen(ctx) {
     // Ping-Verlauf (Sucher) – nur neu bauen, wenn sich etwas ändert (sonst gehen Tipps verloren)
     const histKey = `${isHider}|${snap.pings.length}|${snap.pings.at(-1)?.id}|${sheetOpen}|${Math.floor(Date.now() / 15000)}|${inHead}`;
     if (keys.hist !== histKey && (keys.hist = histKey) && !isHider) {
-      const rows = [...snap.pings].sort((a, b) => b.id - a.id).slice(0, sheetOpen ? 12 : 3);
+      const rows = snap.pings.filter((p) => !isNotice(p)).sort((a, b) => b.id - a.id).slice(0, sheetOpen ? 12 : 3);
       setChildren(histBox,
         h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Ping-Verlauf'), h('span', { class: 'sub' }, inHead ? 'Vorsprung läuft' : `Ping alle ${minutes(s.ping_interval_s)}`)),
         rows.length ? h('div', { class: 'hist' }, rows.map((p, i) => h('button', {
           class: `hrow${i === 0 && ctx.now() - ts(p.created_at) < 90_000 ? ' now' : ''}`,
           onclick: () => {
             if (p.mode === 'circle' || p.mode === 'exact') map.setView([p.lat, p.lon], Math.max(map.getZoom(), 16));
+            else if (p.mode === 'distance') map.setView([p.ref_lat, p.ref_lon], 16);
             else if (p.mode === 'direction') map.setView([p.ref_lat, p.ref_lon], 15);
           },
-        }, h('span', { class: 'hn' }, `#${p.seq}`), h('b', {}, nameOf(p.hider_id)), h('small', {}, `${p.kind === 'penalty' ? 'Extra-Ping · ' : ''}${pingText(p)} · ${ago(ctx.now() - ts(p.created_at))}`)))) : h('p', { class: 'sub' }, 'Noch keine Pings.'));
+        }, h('span', { class: 'hn' }, p.kind === 'joker_sound' ? '🔊' : `#${p.seq}`), h('b', {}, nameOf(p.hider_id)), h('small', {}, `${p.kind === 'penalty' ? 'Extra-Ping · ' : ''}${pingText(p)} · ${ago(ctx.now() - ts(p.created_at))}`)))) : h('p', { class: 'sub' }, 'Noch keine Pings.'));
     } else if (isHider) {
       histBox.replaceChildren();
     }
 
-    // Joker (Gejagte)
-    const enabled = Object.entries(JOKERS).filter(([, j]) => s[j.setting]);
-    const used = Object.values(pv?.joker_used || {}).map(ts).filter(Boolean);
-    const readyAt = used.length ? Math.max(...used) + s.joker_cooldown_s * 1000 : 0;
-    const cooling = readyAt > ctx.now();
-    const jokerKey = `${me.status}|${pv?.joker_pending}|${readyAt}|${cooling}|${g.status}`;
-    if (keys.joker === jokerKey) {
-      if (keys.jokerSub && cooling && !pv?.joker_pending) keys.jokerSub.textContent = `wieder in ${mmss(readyAt - ctx.now())}`;
-    } else if ((keys.joker = jokerKey) && isHider && me.status === 'active' && enabled.length) {
-      setChildren(jokerBox,
-        h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Joker'), (keys.jokerSub = h('span', { class: 'sub' }, pv?.joker_pending ? 'Aktiv für den nächsten Ping' : cooling ? `wieder in ${mmss(readyAt - ctx.now())}` : 'bereit'))),
-        h('div', { class: 'joker-row' }, enabled.map(([type, j]) => {
-          const on = pv?.joker_pending === type;
-          const b = h('button', { class: `joker${on ? ' on' : ''}`, disabled: !on && (cooling || !!pv?.joker_pending || g.status !== 'running'), html: `${icon(type === 'skip' ? 'skip' : type === 'double' ? 'double' : 'ghost', 20)}<span></span>` });
-          b.querySelector('span').textContent = j.label;
-          b.addEventListener('click', busy(b, async () => {
-            if (on) {
-              if (await confirmDialog('Joker zurücknehmen?', 'Die Abklingzeit läuft trotzdem weiter.', 'Zurücknehmen')) await ctx.backend.cancelJoker();
-              return;
-            }
-            if (!(await confirmDialog(`${j.label} einsetzen?`, `Wirkt auf den nächsten Ping. Danach ${minutes(s.joker_cooldown_s)} Abklingzeit.`, 'Einsetzen'))) return;
-            await ctx.backend.useJoker(type);
-            toast('Joker aktiv');
-          }));
-          return b;
-        })));
-    } else {
-      keys.jokerSub = null;
-      jokerBox.replaceChildren();
+    // Joker: Gejagte haben vier, Sucher den Sound-Joker. Jeder einmal pro Runde, von Anfang an.
+    const active = me.status === 'active';
+    const defs = !active ? null : isHider ? HIDER_JOKERS : me.role === 'hunter' ? HUNTER_JOKERS : null;
+    const usedKeys = Object.keys(pv?.joker_used || {}).sort().join();
+    const jokerKey = `${me.status}|${me.role}|${pv?.joker_pending}|${usedKeys}|${g.status}`;
+    if (keys.joker !== jokerKey) {
+      keys.joker = jokerKey;
+      if (!defs) jokerBox.replaceChildren();
+      else {
+        setChildren(jokerBox,
+          h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Joker'), h('span', { class: 'sub' }, pv?.joker_pending ? 'Aktiv für den nächsten Ping' : 'jeder 1× pro Runde')),
+          h('div', { class: 'joker-row', style: { gridTemplateColumns: `repeat(${Math.min(4, Object.keys(defs).length)}, 1fr)` } }, Object.entries(defs).map(([type, j]) => {
+            const on = pv?.joker_pending === type;
+            const used = jokerUsed(pv, type) && !on;
+            const blocked = g.status !== 'running' || (j.pending && !!pv?.joker_pending && !on);
+            const b = h('button', { class: `joker${on ? ' on' : ''}${used ? ' done' : ''}`, disabled: used || (!on && blocked), html: `${icon(j.icon, 20)}<span></span><small class="joker-sub"></small>` });
+            b.querySelector('span').textContent = j.label;
+            b.querySelector('small').textContent = on ? 'aktiv – zurücknehmen' : used ? 'benutzt' : 'bereit';
+            b.addEventListener('click', busy(b, () => clickJoker(type, j, on)));
+            return b;
+          })));
+      }
+    }
+
+    // Gefundene Gejagte können als Sucher weitermachen
+    const canJoin = isHider && me.status === 'found' && ['running', 'paused'].includes(g.status);
+    if (keys.found !== canJoin) {
+      keys.found = canJoin;
+      const joinBtn = h('button', { class: 'btn pri', html: `${icon('target', 18)} <span></span>` });
+      joinBtn.querySelector('span').textContent = 'Als Sucher mitjagen';
+      joinBtn.addEventListener('click', busy(joinBtn, async () => {
+        if (!(await confirmDialog('Als Sucher mitjagen?', 'Du wechselst ins Sucher-Team und suchst die anderen Gejagten. Dein Standort wird dann wieder an die Sucher weitergegeben, und du siehst den Gejagten-Chat nicht mehr. Das lässt sich nicht rückgängig machen.', 'Mitjagen'))) return;
+        await ctx.backend.becomeHunter();
+        toast('Du jagst jetzt als Sucher mit!', 'ok');
+      }));
+      setChildren(foundBox, canJoin ? h('div', { class: 'card tight' },
+        h('b', {}, 'Weiter als Sucher?'),
+        h('p', { class: 'sub' }, 'Du kannst zuschauen oder ab jetzt mit den Suchern die anderen Gejagten jagen.'),
+        joinBtn) : null);
     }
 
     sheet.querySelector('.hider-only').hidden = !(isHider && me.status === 'active');
@@ -378,7 +519,7 @@ export function playScreen(ctx) {
         avatar(p, true),
         h('div', { class: 'grow' }, h('b', {}, p.name, p.id === me.id ? h('span', { class: 'sub' }, '(du)') : null),
           h('small', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-            h('span', {}, p.role === 'hider' ? (p.status === 'active' ? 'frei' : p.status === 'found' ? 'gefunden' : 'raus') : 'Sucher'),
+            h('span', {}, p.role === 'hider' ? (p.status === 'active' ? 'frei' : p.status === 'found' ? 'gefunden' : 'raus') : p.found_at ? 'Sucher (war gefunden)' : 'Sucher'),
             signalEl(p, now2))),
         h('span', { class: `pill ${ROLE[p.role]?.cls || ''}` }, ROLE[p.role]?.label || '')))));
     // Knöpfe nur neu bauen, wenn sich die Rolle ändert (sonst gehen Fingertipps verloren)
@@ -428,19 +569,53 @@ export function playScreen(ctx) {
     const newest = snap.pings.at(-1);
     if (newest && lastPingId != null && newest.id > lastPingId) {
       const fresh = snap.pings.filter((p) => p.id > lastPingId);
+      const sound = fresh.find((p) => p.kind === 'joker_sound');
+      const regular = fresh.filter((p) => p.kind !== 'joker_sound');
       if (me.role === 'hunter') {
-        const names = [...new Set(fresh.map((p) => nameOf(p.hider_id)))];
-        toast(`Neuer Ping: ${names.join(', ')}`, 'ok');
-        vibrate([60, 40, 60]);
-      } else if (fresh.some((p) => p.hider_id === me.id)) {
+        const names = [...new Set(regular.filter((p) => !isNotice(p)).map((p) => nameOf(p.hider_id)))];
+        if (names.length) {
+          toast(`Neuer Ping: ${names.join(', ')}`, 'ok');
+          vibrate([60, 40, 60]);
+        }
+        if (sound) {
+          toast(`Sound-Joker: Standort von ${nameOf(sound.hider_id)} ist auf der Karte.`, 'ok');
+          vibrate([60, 40, 60]);
+          map.setView([sound.lat, sound.lon], Math.max(map.getZoom(), 17));
+        }
+      } else if (regular.some((p) => p.hider_id === me.id)) {
         toast('Die Sucher haben dich gerade geortet.', 'ok');
         vibrate(120);
       }
     }
     lastPingId = newest?.id ?? lastPingId ?? 0;
+    notifyEvents();
     if (snap.game.status !== lastStatus) {
       if (snap.game.status === 'paused') vibrate([200, 100, 200]);
       lastStatus = snap.game.status;
+    }
+  }
+
+  // Joker-Ereignisse nur für mich: Ton beim Sound-Joker, Karte beim Sucher-Radar
+  function notifyEvents() {
+    const me = snap.me;
+    const events = snap.events || [];
+    const fresh = events.filter((e) => e.id > lastEventId);
+    if (!fresh.length) return;
+    lastEventId = Math.max(lastEventId, ...events.map((e) => e.id));
+    for (const e of fresh) {
+      if (ts(e.created_at) < ctx.now() - 10 * 60_000) continue; // alte Ereignisse nicht nachholen
+      if (e.kind === 'sound' && me.role === 'hider') {
+        toast(`🔊 ${nameOf(e.caller_id)} hat den Sound-Joker gegen dich eingesetzt. Die Sucher sehen jetzt deinen genauen Standort!`, 'bad');
+        vibrate([300, 100, 300, 100, 300]);
+        playAlarm().then((ok) => {
+          if (!ok) toast('Der Browser hat den Ton blockiert. Tippe einmal in die App, dann klappt er beim nächsten Mal.', 'bad');
+        });
+      } else if (e.kind === 'reveal' && me.role === 'hider' && e.positions?.length) {
+        const pts = e.positions.map((p) => [p.lat, p.lon]);
+        const mine = ctx.pos();
+        if (mine) pts.push([mine.lat, mine.lon]);
+        map.fitBounds(pts, { padding: [50, 50], maxZoom: 17, paddingBottomRight: [50, sheet.offsetHeight + 20] });
+      }
     }
   }
 
@@ -458,9 +633,18 @@ export function playScreen(ctx) {
     snap = next;
     if (!snap.game || !snap.me) return;
     notify();
+    if (meMarker && snap.me.role !== meRole) {
+      // Rolle gewechselt (gefunden → Sucher): Farbe der eigenen Figur neu zeichnen
+      meRole = snap.me.role;
+      meG.clearLayers();
+      meMarker = null;
+      meAcc = null;
+      drawMe(ctx.pos());
+    }
     drawZone();
     drawPings();
     drawMates();
+    drawReveal();
     renderHud();
     renderSheet();
     renderVeil();
@@ -476,6 +660,7 @@ export function playScreen(ctx) {
     // Kacheln und Zeiten jede Sekunde aktualisieren, ohne den Halte-Knopf neu zu bauen
     renderSheet();
     drawZone();
+    drawReveal();
     pokeIfDue();
   }, 1000);
 

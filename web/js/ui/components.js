@@ -72,6 +72,7 @@ export function signalEl(p, now) {
 }
 
 export function pingModeText(s) {
+  if (s.ping_mode === 'distance') return 'Entfernung in Metern';
   if (s.ping_mode === 'exact') return 'Exakter Punkt';
   if (s.ping_mode === 'direction') return 'Richtung & Entfernung';
   return `Kreis ${s.ping_radius_m} m`;
@@ -88,7 +89,7 @@ export function rulesChips(game) {
     area ? (area.properties?.shape === 'circle' ? `Zone ${meters(area.properties.radius_m)}` : `Gebiet ${fmtKm2(areaM2(area))}`) : 'Kein Gebiet',
     s.shrink_enabled ? `Schrumpft alle ${minutes(s.shrink_every_s)}` : null,
     `Strafe: ${s.boundary_penalty === 'eliminate' ? 'Ausscheiden' : 'Extra-Ping'}`,
-    (s.joker_skip || s.joker_double || s.joker_decoy) ? 'Joker an' : null,
+    'Joker: 1× pro Runde',
     (game.exclusions?.length ? `${game.exclusions.length} Sperrzone${game.exclusions.length > 1 ? 'n' : ''}` : null),
   ].filter(Boolean);
   return h('div', { class: 'chips rules' }, items.map((t) => h('span', { class: 'chip' }, t)));
@@ -100,11 +101,13 @@ export function privacyBody(settings) {
   const li = (t) => h('li', { style: { marginBottom: '6px' } }, t);
   return h('div', { class: 'stack' },
     h('ul', { class: 'sub', style: { paddingLeft: '18px', fontSize: '14px', color: 'var(--tx)' } },
-      li('Sucher sehen von den Gejagten nie die echte Position, nur die Pings im eingestellten Takt (Punkt, Kreis oder Richtung).'),
+      li('Sucher sehen von den Gejagten nie die echte Position. Jeder Ping zeigt nur die Entfernung in Metern von der eigenen Position zum Gejagten.'),
+      li('Joker: Setzt ein Sucher den Sound-Joker ein, spielt das Handy des Gejagten einen Ton und alle Sucher sehen dessen genauen Standort. Mit dem Sucher-Radar sieht ein Gejagter einmal pro Runde, wo die Sucher gerade genau sind.'),
+      li('Wer gefunden wurde, gibt keinen Standort mehr weiter. Wer danach als Sucher mitjagt, gehört ab dann zum Sucher-Team.'),
       li(s.show_teammates ? 'Dein eigenes Team sieht deine Position live auf der Karte. Das andere Team nicht.' : 'Niemand sonst sieht deine Position live, auch dein Team nicht.'),
       li('Gejagte sehen die Sucher nicht.'),
       li('Der Server speichert Positionen nur, während ein Spiel läuft. Im Warteraum wird nur vermerkt, dass ein Signal ankam.'),
-      li(`Standorte, Pings und Chat werden ${s.retention_h} h nach Spielende automatisch gelöscht. Nach dem Spiel sehen alle Mitspieler die Routen als Wiederholung.`),
+      li(`Standorte, Pings und Chat werden ${s.retention_h} h nach Spielende automatisch gelöscht. Nach dem Spiel sehen alle Mitspieler die Routen als Wiederholung. Diese Wiederholung speichert dein Handy zusätzlich bei dir (Startseite), sie lässt sich dort löschen.`),
       li('Außerdem gespeichert: gespeicherte Spielgebiete (365 Tage) und deine Tracker-Kennung für Traccar. Auf deinem Handy liegen Name, Anmeldung und Einstellungen. „Meine Daten löschen“ auf der Startseite entfernt alles auf dem Server.'),
       li('Keine Werbung, kein Tracking durch Dritte. Die Kartenbilder lädt dein Handy von OpenStreetMap (die sehen deine IP-Adresse und den Kartenausschnitt).'),
       li('Schalte Traccar nach dem Spiel aus. Der Server ignoriert Meldungen außerhalb eines Spiels.'),

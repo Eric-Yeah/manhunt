@@ -2,7 +2,8 @@
 // Die echte Position verlässt diese Funktion nie unverändert, außer im Modus "exakter Punkt".
 import { destination, distanceM, bearingDeg, compass } from './geo.js';
 
-export const PING_MODES = ['exact', 'circle', 'direction'];
+// 'distance' ist der Standard: Sucher sehen nur die Entfernung in Metern. Die anderen Modi gibt es nur noch für alte Spiele.
+export const PING_MODES = ['distance', 'exact', 'circle', 'direction'];
 
 /** Entfernung auf grobe Stufen runden, damit man aus Richtung + Entfernung nicht zurückrechnen kann. */
 export function roundDistance(d, coarse = false) {
@@ -30,12 +31,22 @@ export function offsetCircleCenter(target, radiusM, rng = Math.random) {
 
 /**
  * Baut den sichtbaren Teil eines Pings.
- * @param {'exact'|'circle'|'direction'} mode
+ * @param {'distance'|'exact'|'circle'|'direction'} mode
  * @param {{lat:number, lon:number}} target  (geglättete) Position des Gejagten bzw. Täuschungsort
  * @param {object} o  { radiusM, ref:{lat,lon}|null, refIsCenter:boolean, double:boolean }
  */
 export function buildPing(mode, target, o = {}, rng = Math.random) {
   const radius = o.radiusM || 250;
+  if (mode === 'distance') {
+    const ref = o.ref;
+    if (!ref) throw new Error('Entfernungs-Ping braucht die Position des Suchers');
+    const dist = distanceM(ref, target);
+    // Normal: auf den Meter genau. "Ungenauer Ping": auf 100 m gerundet und bis zu 150 m daneben.
+    const shown = o.double
+      ? Math.max(100, Math.round((dist + (rng() * 2 - 1) * 150) / 100) * 100)
+      : Math.round(dist);
+    return { mode: 'distance', ref_lat: round6(ref.lat), ref_lon: round6(ref.lon), ref_is_center: false, distance_m: shown };
+  }
   if (mode === 'exact') {
     if (o.double) {
       const r = 100;
@@ -71,6 +82,17 @@ export function buildPing(mode, target, o = {}, rng = Math.random) {
 
 function round6(x) {
   return Math.round(x * 1e6) / 1e6;
+}
+
+/** Zeile ohne Entfernung, die nur dem Gejagten meldet "du wurdest geortet" (Entfernungs-Modus). */
+export function isNotice(p) {
+  return p?.mode === 'distance' && !p.recipient_id;
+}
+
+/** Text für die Anzeige, z. B. "412 m" (beim ungenauen Ping "ca. 400 m"). */
+export function distanceText(p) {
+  if (!p || p.mode !== 'distance' || !Number.isFinite(p.distance_m)) return '';
+  return `${p.joker === 'double' ? 'ca. ' : ''}${Math.round(p.distance_m).toLocaleString('de-DE')} m`;
 }
 
 /** Text für die Anzeige, z. B. "Nordost, ca. 400 m". */

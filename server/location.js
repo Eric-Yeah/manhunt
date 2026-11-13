@@ -29,8 +29,8 @@ export async function handleLocation(req, { rpc, now = Date.now }) {
   if (!ctx.active) return json({ ok: true, active: false, info: 'Kein aktives Spiel. Standort wird nicht gespeichert.' });
 
   const base = { player_id: ctx.player.id, source: m.source };
-  if (ctx.game.status !== 'running' || m.invalidFix) {
-    // Warteraum/Pause: nur "Signal empfangen" vermerken, keinen Standort speichern.
+  if (ctx.game.status !== 'running' || m.invalidFix || ctx.player.status !== 'active') {
+    // Warteraum/Pause oder gefunden/ausgeschieden: nur "Signal empfangen" vermerken, keinen Standort speichern.
     await rpc('svc_store_location', { p: { ...base, signal_only: true } });
     return json({ ok: true, stored: false, status: ctx.game.status });
   }

@@ -3,25 +3,26 @@ import { h, busy, setChildren } from '../../util/dom.js';
 import { icon } from '../../util/icons.js';
 import { mmss, ts, dateTime } from '../../util/format.js';
 import { save } from '../../util/storage.js';
-import { createMap, polygonLayer, dotMarker, labelMarker, fitGeometry } from '../map.js';
+import { saveReplay, buildReplayEntry } from '../../util/replays.js';
+import { startRole } from '../../core/engine.js';
+import { mountReplay } from '../replay.js';
 import { avatar } from '../components.js';
 
 export function resultScreen(ctx) {
-  const L = window.L;
   const el = h('div', { class: 'scr' });
   const replayBox = h('div', { class: 'card', style: { padding: '0', overflow: 'hidden' } });
-  let map = null, replay = null, playing = false, raf = 0, tNow = 0, t0 = 0, t1 = 0;
-  let posG = null, slider = null, timeLbl = null, playBtn = null;
+  const savedHint = h('p', { class: 'hint', hidden: true });
+  let view = null;
   let built = false;
 
   function summary(snap) {
     const g = snap.game;
-    const hiders = snap.players.filter((p) => p.role === 'hider');
+    const hiders = snap.players.filter((p) => startRole(p) === 'hider');
     return {
       winner: g.winner,
       reason: g.end_reason,
       durationMs: Math.max(0, ts(g.ended_at) - ts(g.started_at)),
-      found: hiders.filter((p) => p.status === 'found' || p.status === 'eliminated').length,
+      found: hiders.filter((p) => p.status === 'found' || p.status === 'eliminated' || p.found_at || p.role === 'hunter').length,
       hiders: hiders.length,
       pings: Math.max(0, ...snap.pings.map((p) => p.seq)),
     };
@@ -37,93 +38,20 @@ export function resultScreen(ctx) {
   }
 
   async function buildReplay(snap) {
+    let replay;
     try {
       replay = await ctx.backend.getReplay();
     } catch (e) {
       setChildren(replayBox, h('p', { class: 'sub', style: { padding: '16px' } }, `Wiederholung nicht verfügbar: ${e.message}`));
       return;
     }
-    const tracks = (replay.tracks || []).filter((t) => t.points?.length);
-    t0 = ts(replay.started_at) || ts(snap.game.started_at);
-    t1 = ts(replay.ended_at) || ts(snap.game.ended_at);
-    tNow = t1;
-    const mapEl = h('div', { class: 'map' });
-    playBtn = h('button', { class: 'ib', 'aria-label': 'Wiedergabe starten', html: icon('play', 18) });
-    slider = h('input', { type: 'range', min: 0, max: 1000, value: 1000, 'aria-label': 'Zeitpunkt der Wiederholung', class: 'grow' });
-    timeLbl = h('span', { class: 'sub tnum', style: { minWidth: '52px', textAlign: 'right' } }, mmss(t1 - t0));
-    setChildren(replayBox,
-      h('div', { class: 'replay' }, mapEl),
-      h('div', { style: { padding: '10px 14px 12px' } },
-        h('div', { class: 'row between' }, h('span', { class: 'lbl' }, 'Wiederholung'), h('span', { class: 'sub' }, tracks.length ? 'Gejagte orange, Sucher blau' : 'Keine Routen gespeichert')),
-        h('div', { class: 'replay-ctl' }, playBtn, slider, timeLbl)));
-    map = createMap(mapEl, { zoom: 14 });
-    const g = snap.game;
-    if (g.area) {
-      polygonLayer(g.area.geometry, 'lf-bound').addTo(map);
-      fitGeometry(map, g.area.geometry, [16, 16]);
+    const entry = buildReplayEntry(snap, replay, { ts });
+    view = mountReplay(replayBox, entry);
+    // Auf dem Gerät speichern, damit sie auch nach dem Verlassen der Lobby abrufbar bleibt
+    if (entry.tracks.length && saveReplay(entry)) {
+      savedHint.textContent = 'Diese Wiederholung ist auf deinem Handy gespeichert. Du findest sie auf der Startseite unter „Gespeicherte Wiederholungen“.';
+      savedHint.hidden = false;
     }
-    const nameOf = (id) => snap.players.find((p) => p.id === id);
-    for (const t of tracks) {
-      const p = nameOf(t.player_id);
-      L.polyline(t.points.map(([x, y]) => [y, x]), { className: `lf-route ${p?.role === 'hunter' ? 'hunter' : 'hider'}`, interactive: false }).addTo(map);
-    }
-    // Gefunden-Orte: letzter Punkt vor dem Fundzeitpunkt
-    for (const p of snap.players.filter((x) => x.role === 'hider' && x.found_at)) {
-      const tr = tracks.find((t) => t.player_id === p.id);
-      const pt = tr && [...tr.points].reverse().find((q) => q[2] <= ts(p.found_at) + 5000);
-      if (pt) labelMarker({ lat: pt[1], lon: pt[0] }, `✕ ${p.name}`, 'bad').addTo(map);
-    }
-    // Pings blass dazu, Täuschungen markiert
-    const decoys = new Set(replay.decoys || []);
-    for (const pg of snap.pings.filter((x) => x.mode === 'circle' && !x.recipient_id)) {
-      L.circle([pg.lat, pg.lon], { radius: pg.radius_m, className: `lf-ping old${decoys.has(pg.id) ? ' decoy' : ''}`, interactive: false }).addTo(map);
-    }
-    posG = L.layerGroup().addTo(map);
-    slider.addEventListener('input', () => {
-      stop();
-      tNow = t0 + ((t1 - t0) * Number(slider.value)) / 1000;
-      drawAt(snap, tracks);
-    });
-    playBtn.addEventListener('click', () => (playing ? stop() : play(snap, tracks)));
-    drawAt(snap, tracks);
-  }
-
-  function drawAt(snap, tracks) {
-    posG.clearLayers();
-    for (const t of tracks) {
-      const p = snap.players.find((x) => x.id === t.player_id);
-      let pt = null;
-      for (const q of t.points) { if (q[2] <= tNow) pt = q; else break; }
-      if (!pt) continue;
-      const gone = p?.found_at && ts(p.found_at) <= tNow;
-      dotMarker({ lat: pt[1], lon: pt[0] }, `mate ${p?.role === 'hunter' ? '' : 'hider'}`, gone ? 'found' : '').addTo(posG);
-      labelMarker({ lat: pt[1], lon: pt[0] }, p?.name || '?', p?.role === 'hunter' ? 'ac' : 'hid', -22).addTo(posG);
-    }
-    slider.value = Math.round(((tNow - t0) / Math.max(1, t1 - t0)) * 1000);
-    slider.style.setProperty('--p', `${slider.value / 10}%`);
-    timeLbl.textContent = mmss(tNow - t0);
-  }
-
-  function play(snap, tracks) {
-    if (tNow >= t1) tNow = t0;
-    playing = true;
-    playBtn.innerHTML = icon('pause', 18);
-    const speed = (t1 - t0) / 20000; // ganze Runde in 20 Sekunden
-    let last = performance.now();
-    const stepFn = (now) => {
-      if (!playing) return;
-      tNow = Math.min(t1, tNow + (now - last) * speed);
-      last = now;
-      drawAt(snap, tracks);
-      if (tNow >= t1) return stop();
-      raf = requestAnimationFrame(stepFn);
-    };
-    raf = requestAnimationFrame(stepFn);
-  }
-  function stop() {
-    playing = false;
-    cancelAnimationFrame(raf);
-    if (playBtn) playBtn.innerHTML = icon('play', 18);
   }
 
   let lastKey = null;
@@ -148,8 +76,8 @@ export function resultScreen(ctx) {
       await ctx.backend.rematch();
     }));
     const lobbyBtn = h('button', { class: 'btn sec', onclick: () => { rememberRound(snap); ctx.dismissResult(g.id); } }, 'Zur Lobby');
-    const hiders = snap.players.filter((p) => p.role === 'hider');
-    const hunters = snap.players.filter((p) => p.role === 'hunter');
+    const hiders = snap.players.filter((p) => startRole(p) === 'hider');
+    const hunters = snap.players.filter((p) => startRole(p) === 'hunter');
 
     const parts = [
       h('div', { class: `trophy ${hidersWin ? 'hid' : ''}` }, h('span', { class: 'tr', html: icon('trophy', 42) })),
@@ -161,10 +89,11 @@ export function resultScreen(ctx) {
         h('p', { class: 'sub' }, 'Gleiche Regeln, gleiches Gebiet, Rollen getauscht. Du bist schon eingetragen.'),
         h('button', { class: 'btn pri', onclick: () => ctx.openGameById(g.rematch_id) }, 'Zum Warteraum')) : null,
       replayBox,
+      savedHint,
       h('span', { class: 'lbl' }, 'Ergebnis Gejagte'),
       h('div', { class: 'card list' }, hiders.map((p) => h('div', { class: 'pl' }, avatar(p),
-        h('div', { class: 'grow' }, h('b', {}, p.name), h('small', {}, p.status === 'found' ? `gefunden bei ${mmss(ts(p.found_at) - ts(g.hunt_starts_at))}` : p.status === 'eliminated' ? 'ausgeschieden (Grenze)' : p.status === 'left' ? 'hat verlassen' : `überlebt ${mmss(huntDur)}`)),
-        h('span', { class: `pill ${p.status === 'active' ? (s.winner ? 'ok' : '') : 'bad'}` }, p.status === 'active' ? (s.winner ? 'Sieg' : 'frei') : p.status === 'found' ? 'Gefunden' : 'Raus')))),
+        h('div', { class: 'grow' }, h('b', {}, p.name), h('small', {}, p.found_at ? `gefunden bei ${mmss(ts(p.found_at) - ts(g.hunt_starts_at))}${p.role === 'hunter' ? ', jagte danach mit' : ''}` : p.status === 'eliminated' ? 'ausgeschieden (Grenze)' : p.status === 'left' ? 'hat verlassen' : `überlebt ${mmss(huntDur)}`)),
+        h('span', { class: `pill ${p.status === 'active' && p.role === 'hider' ? (s.winner ? 'ok' : '') : 'bad'}` }, p.status === 'active' && p.role === 'hider' ? (s.winner ? 'Sieg' : 'frei') : p.found_at ? 'Gefunden' : p.status === 'active' ? 'Sucher' : 'Raus')))),
       h('span', { class: 'lbl' }, 'Sucher'),
       h('div', { class: 'card list' }, hunters.map((p) => h('div', { class: 'pl' }, avatar(p), h('div', { class: 'grow' }, h('b', {}, p.name)), h('span', { class: `pill ${s.winner === 'hunters' ? 'ok' : ''}` }, s.winner === 'hunters' ? 'Sieg' : 'Sucher')))),
       h('button', { class: 'btn sec', html: `${icon('chat', 18)} Chat ansehen (jetzt alle Kanäle)`, onclick: () => ctx.openChat() }),
@@ -180,7 +109,7 @@ export function resultScreen(ctx) {
       setChildren(keep, h('p', { class: 'sub', style: { padding: '16px' } }, 'Lade Wiederholung …'));
       buildReplay(snap);
     }
-    map?.invalidateSize();
+    view?.invalidate();
   }
 
   function tileEl(lbl, v) {
@@ -193,8 +122,7 @@ export function resultScreen(ctx) {
     el,
     update: render,
     destroy() {
-      stop();
-      map?.remove();
+      view?.destroy();
     },
   };
 }

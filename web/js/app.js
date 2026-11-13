@@ -13,6 +13,7 @@ import { resultScreen } from './ui/screens/result.js';
 import { openChat, hasUnread } from './ui/chat.js';
 import { openHelp } from './ui/help.js';
 import { showNewReleases } from './ui/releases.js';
+import { initSound } from './util/sound.js';
 
 const SCREENS = { start: startScreen, settings: settingsScreen, area: areaScreen, waiting: waitingScreen, play: playScreen, result: resultScreen };
 
@@ -82,6 +83,7 @@ export class App {
   }
 
   async start() {
+    initSound();
     const theme = load('theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     document.documentElement.dataset.theme = theme;
     const params = new URLSearchParams(location.search);

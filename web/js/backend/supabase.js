@@ -96,7 +96,7 @@ export class SupabaseBackend extends BaseBackend {
     if (!id) return;
     const gen = (this.reloadGen = (this.reloadGen || 0) + 1);
     const q = (t) => this.sb.from(t);
-    const [g, pl, pv, pi, se, ms, lo] = await Promise.all([
+    const [g, pl, pv, pi, se, ms, lo, ev] = await Promise.all([
       q('games').select('*').eq('id', id).maybeSingle(),
       q('players').select('*').eq('game_id', id).order('joined_at'),
       q('player_private').select('*').eq('game_id', id),
@@ -104,9 +104,10 @@ export class SupabaseBackend extends BaseBackend {
       q('ping_secrets').select('*').eq('game_id', id),
       q('messages').select('*').eq('game_id', id).order('id', { ascending: false }).limit(300),
       q('locations').select('player_id, lat, lon, s_lat, s_lon, accuracy, recorded_at').eq('game_id', id).order('id', { ascending: false }).limit(300),
+      q('joker_events').select('*').eq('game_id', id).order('id', { ascending: false }).limit(50),
     ]);
     if (this.gameId !== id || gen !== this.reloadGen) return; // veraltete Antwort verwerfen
-    for (const r of [g, pl, pv, pi, se, ms, lo]) if (r.error) throw new Error(friendly(r.error));
+    for (const r of [g, pl, pv, pi, se, ms, lo, ev]) if (r.error) throw new Error(friendly(r.error));
     if (!g.data || !pl.data.some((p) => p.user_id === this.userId && p.status !== 'left')) {
       // Spiel gelöscht oder man wurde entfernt
       this.closeGame(false);
@@ -122,6 +123,7 @@ export class SupabaseBackend extends BaseBackend {
       secrets: se.data,
       messages: ms.data.reverse(),
       teammates: BaseBackend.latestPerPlayer(lo.data),
+      events: ev.data.reverse(),
       offline: this.snap.offline,
     };
     this.emit();
@@ -151,6 +153,10 @@ export class SupabaseBackend extends BaseBackend {
     });
     on('pings', `game_id=eq.${id}`, (p) => {
       BaseBackend.applyChange(this.snap.pings, p.eventType, p.new, p.old, 'id');
+      this.emit();
+    });
+    on('joker_events', `game_id=eq.${id}`, (p) => {
+      BaseBackend.applyChange(this.snap.events, p.eventType, p.new, p.old, 'id');
       this.emit();
     });
     on('messages', `game_id=eq.${id}`, (p) => {
@@ -221,6 +227,8 @@ export class SupabaseBackend extends BaseBackend {
   }
   useJoker(type) { return this.call('use_joker', { p_game: this.gameId, p_type: type }); }
   cancelJoker() { return this.call('cancel_joker', { p_game: this.gameId }); }
+  useHunterJoker(targetId) { return this.call('use_hunter_joker', { p_game: this.gameId, p_target: targetId }); }
+  becomeHunter() { return this.call('become_hunter', { p_game: this.gameId }); }
   async rematch() {
     const r = await this.call('rematch', { p_game: this.gameId });
     await this.openGame(r.game_id);

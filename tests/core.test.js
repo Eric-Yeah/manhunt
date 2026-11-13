@@ -5,10 +5,13 @@ import {
   distanceM, destination, bearingDeg, compass, boundaryStatus, circleFeature, polygonFeature,
   areaM2, validateArea, distanceToBoundaryM, isValidLatLon, randomPointInGeometry, pointInGeometry,
 } from '../web/js/core/geo.js';
-import { buildPing, offsetCircleCenter, roundDistance, directionText } from '../web/js/core/ping.js';
+import { buildPing, offsetCircleCenter, roundDistance, directionText, distanceText, isNotice } from '../web/js/core/ping.js';
 import { kalmanUpdate } from '../web/js/core/kalman.js';
-import { computeZoneStages, stageIndexAt } from '../web/js/core/zone.js';
-import { normalizeSettings, processLocation, planTick, assignRoles, isPlanEmpty, DEFAULT_SETTINGS } from '../web/js/core/engine.js';
+import { computeZoneStages, stageIndexAt, MAX_STAGES } from '../web/js/core/zone.js';
+import {
+  normalizeSettings, processLocation, planTick, assignRoles, isPlanEmpty, DEFAULT_SETTINGS,
+  HIDER_JOKERS, HUNTER_JOKERS, PENDING_JOKERS, jokerUsed, startRole,
+} from '../web/js/core/engine.js';
 import { parseLocationRequest, parseTimestamp } from '../web/js/core/traccar.js';
 
 const C = { lat: 50.1255, lon: 8.6630 }; // Frankfurt, Grüneburgpark
@@ -288,7 +291,7 @@ test('Tick: exakter Punkt', () => {
 });
 
 test('Tick: Joker überspringen, doppelt, falscher Ort', () => {
-  const settings = { joker_skip: true, joker_double: true, joker_decoy: true };
+  const settings = {};
   let { ctx, now, hiderPos } = tickCtx('circle', { settings, h1: { joker_pending: 'skip' } });
   let plan = planTick(ctx, now, seeded(5));
   assert.equal(plan.pings[0].kind, 'joker_skip');
@@ -300,10 +303,100 @@ test('Tick: Joker überspringen, doppelt, falscher Ort', () => {
   assert.equal(plan.pings[0].decoy, true);
   assert.equal(plan.pings[0].joker, null);
   assert.ok(distanceM(plan.pings[0], hiderPos) > 300 - 250 * 0.85);
-  // Deaktivierter Joker wird verbraucht, aber nicht angewendet
-  ({ ctx, now } = tickCtx('circle', { settings: { joker_skip: false }, h1: { joker_pending: 'skip' } }));
+  // Ein Joker, der nicht auf Pings wirkt (z. B. das Sucher-Radar), wird nicht angewendet
+  ({ ctx, now } = tickCtx('circle', { settings, h1: { joker_pending: 'reveal' } }));
   plan = planTick(ctx, now, seeded(5));
   assert.equal(plan.pings[0].kind, 'regular');
+});
+
+test('Entfernungs-Ping zeigt nur Meter, kein Ort, keine Richtung', () => {
+  const target = destination(C, 437, 52);
+  const p = buildPing('distance', target, { ref: C }, seeded(3));
+  assert.equal(p.mode, 'distance');
+  assert.ok(Math.abs(p.distance_m - 437) <= 1, String(p.distance_m));
+  assert.equal(p.lat, undefined);
+  assert.equal(p.bearing_deg, undefined);
+  assert.equal(distanceText(p), `${p.distance_m} m`);
+  // Ungenau: gerundet auf 100 m und höchstens 150 m daneben
+  for (let i = 0; i < 200; i++) {
+    const q = buildPing('distance', target, { ref: C, double: true }, seeded(i + 1));
+    assert.equal(q.distance_m % 100, 0);
+    assert.ok(Math.abs(q.distance_m - 437) <= 200, String(q.distance_m));
+    assert.ok(q.distance_m >= 100);
+  }
+  assert.equal(distanceText({ mode: 'distance', distance_m: 400, joker: 'double' }), 'ca. 400 m');
+  assert.equal(isNotice({ mode: 'distance', recipient_id: null }), true);
+  assert.equal(isNotice({ mode: 'distance', recipient_id: 'k1' }), false);
+  assert.throws(() => buildPing('distance', target, {}, seeded(1)), /Position des Suchers/);
+});
+
+test('Tick im Standard-Modus: jeder Sucher bekommt seine eigene Entfernung, der Gejagte nur eine Meldung', () => {
+  const { ctx, now, hiderPos } = tickCtx(undefined, { settings: { ping_mode: 'distance' } });
+  const plan = planTick(ctx, now, seeded(5));
+  const rows = plan.pings;
+  assert.equal(rows.length, 3); // Meldung + Ben + Eric
+  const notice = rows.find((p) => !p.recipient_id);
+  assert.equal(notice.mode, 'distance');
+  assert.equal(notice.distance_m, null);
+  assert.equal(notice.ref_lat, undefined);
+  const forBen = rows.find((p) => p.recipient_id === 'k1');
+  assert.ok(Math.abs(forBen.distance_m - distanceM(C, hiderPos)) <= 1);
+  assert.equal(forBen.lat, undefined);
+  // Eric hat keinen Standort: kein erfundener Bezugspunkt, nur "kein Signal"
+  const forEric = rows.find((p) => p.recipient_id === 'k2');
+  assert.equal(forEric.mode, 'none');
+  assert.equal(forEric.no_signal, true);
+  // Gefundene Gejagte bekommen keinen Ping
+  assert.ok(rows.every((p) => p.hider_id === 'h1'));
+});
+
+test('Joker beim Entfernungs-Ping: Überspringen, ungenau, falsche Entfernung', () => {
+  let { ctx, now, hiderPos } = tickCtx('distance', { h1: { joker_pending: 'double' } });
+  let rows = planTick(ctx, now, seeded(5)).pings;
+  const dbl = rows.find((p) => p.recipient_id === 'k1');
+  assert.equal(dbl.joker, 'double');
+  assert.equal(dbl.distance_m % 100, 0);
+  ({ ctx, now, hiderPos } = tickCtx('distance', { h1: { joker_pending: 'decoy' } }));
+  rows = planTick(ctx, now, seeded(5)).pings;
+  const fake = rows.find((p) => p.recipient_id === 'k1');
+  assert.equal(fake.decoy, true);
+  assert.ok(Math.abs(fake.distance_m - distanceM(C, hiderPos)) > 50, 'falsche Entfernung weicht deutlich ab');
+  ({ ctx, now } = tickCtx('distance', { h1: { joker_pending: 'skip' } }));
+  rows = planTick(ctx, now, seeded(5)).pings;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, 'joker_skip');
+});
+
+test('Jeder Joker nur einmal pro Runde, Start-Rolle bleibt erhalten', () => {
+  assert.equal(jokerUsed({ joker_used: { skip: 'x' } }, 'skip'), true);
+  assert.equal(jokerUsed({ joker_used: { skip: 'x' } }, 'reveal'), false);
+  assert.equal(jokerUsed(null, 'skip'), false);
+  assert.deepEqual(Object.keys(HIDER_JOKERS), ['skip', 'double', 'decoy', 'reveal']);
+  assert.deepEqual(Object.keys(HUNTER_JOKERS), ['sound']);
+  assert.deepEqual(PENDING_JOKERS, ['skip', 'double', 'decoy']);
+  assert.equal(startRole({ role: 'hunter', start_role: 'hider' }), 'hider');
+  assert.equal(startRole({ role: 'hunter' }), 'hunter');
+});
+
+test('Zonen-Schrumpfung: feine Werte und hohe Spannen', () => {
+  const s = normalizeSettings({ shrink_every_s: 61, shrink_percent: 1 });
+  assert.equal(s.shrink_every_s, 61);
+  assert.equal(s.shrink_percent, 1);
+  const hi = normalizeSettings({ shrink_every_s: 99999, shrink_percent: 999 });
+  assert.equal(hi.shrink_every_s, 7200);
+  assert.equal(hi.shrink_percent, 90);
+  const lo = normalizeSettings({ shrink_every_s: 1, shrink_percent: 0 });
+  assert.equal(lo.shrink_every_s, 60);
+  assert.equal(lo.shrink_percent, 1);
+  // 1 %: kleine Schritte, die Stufenzahl bleibt begrenzt
+  const area = circleFeature(C, 800);
+  const { stages, warnings } = computeZoneStages(area, { shrink_enabled: true, shrink_every_s: 60, shrink_percent: 1, duration_s: 6 * 3600 });
+  assert.ok(stages.length <= MAX_STAGES, String(stages.length));
+  assert.ok(warnings.some((w) => w.includes('Schrumpf-Stufen')), JSON.stringify(warnings));
+  assert.ok(stages[1].area_m2 > stages[0].area_m2 * 0.98);
+  // 90 %: schon die erste Stufe ist winzig
+  const big = computeZoneStages(circleFeature(C, 2000), { shrink_enabled: true, shrink_every_s: 600, shrink_percent: 90, duration_s: 3600 });
+  assert.ok(big.stages[1].area_m2 < big.stages[0].area_m2 * 0.11);
 });
 
 test('Tick: Strafe außerhalb (Extra-Ping oder Ausscheiden)', () => {
@@ -411,6 +504,14 @@ test('Service Worker kennt alle App-Module (Offline nach dem ersten Besuch)', as
     const rel = path.relative(base, f);
     assert.ok(sw.includes(`'${rel}'`), `${rel} fehlt in sw.js`);
   }
+});
+
+test('Sound des Sound-Jokers liegt in der App und im Cache', async () => {
+  const fs = await import('node:fs');
+  const sw = fs.readFileSync(new URL('../web/sw.js', import.meta.url), 'utf8');
+  const size = fs.statSync(new URL('../web/sounds/fahh.mp3', import.meta.url)).size;
+  assert.ok(size > 10_000 && size < 1_000_000, `Sound ${size} Bytes`);
+  assert.ok(sw.includes("'sounds/fahh.mp3'"));
 });
 
 test('Version: version.js, sw.js und package.json stimmen überein, Release Notes sind gepflegt', async () => {

@@ -96,6 +96,13 @@ function offsetCircleCenter(target, radiusM, rng = Math.random) {
 }
 function buildPing(mode, target, o = {}, rng = Math.random) {
   const radius = o.radiusM || 250;
+  if (mode === "distance") {
+    const ref = o.ref;
+    if (!ref) throw new Error("Entfernungs-Ping braucht die Position des Suchers");
+    const dist = distanceM(ref, target);
+    const shown = o.double ? Math.max(100, Math.round((dist + (rng() * 2 - 1) * 150) / 100) * 100) : Math.round(dist);
+    return { mode: "distance", ref_lat: round6(ref.lat), ref_lon: round6(ref.lon), ref_is_center: false, distance_m: shown };
+  }
   if (mode === "exact") {
     if (o.double) {
       const r = 100;
@@ -145,7 +152,9 @@ function stageIndexAt(stages, msSinceHuntStart) {
 // web/js/core/engine.js
 var DEFAULT_SETTINGS = Object.freeze({
   ping_interval_s: 300,
-  ping_mode: "circle",
+  // 'distance' = Sucher sehen nur die Entfernung zum Gejagten in Metern. Die älteren Modi
+  // (exact, circle, direction) bleiben gültig, damit alte Spiele weiterlaufen; die App bietet sie nicht mehr an.
+  ping_mode: "distance",
   ping_radius_m: 250,
   headstart_s: 600,
   duration_s: 3600,
@@ -157,10 +166,6 @@ var DEFAULT_SETTINGS = Object.freeze({
   shrink_enabled: false,
   shrink_every_s: 900,
   shrink_percent: 10,
-  joker_skip: false,
-  joker_double: false,
-  joker_decoy: false,
-  joker_cooldown_s: 900,
   show_teammates: true,
   retention_h: 24
 });
@@ -172,17 +177,16 @@ var SETTING_LIMITS = Object.freeze({
   boundary_warn_s: [5, 300],
   boundary_tolerance_m: [0, 100],
   accuracy_max_m: [10, 200],
-  shrink_every_s: [60, 3600],
-  shrink_percent: [5, 50],
-  joker_cooldown_s: [60, 3600],
+  shrink_every_s: [60, 7200],
+  shrink_percent: [1, 90],
   retention_h: [1, 72]
 });
 var ENUMS = {
-  ping_mode: ["exact", "circle", "direction"],
+  ping_mode: ["distance", "exact", "circle", "direction"],
   role_mode: ["choose", "random"],
   boundary_penalty: ["extra_ping", "eliminate"]
 };
-var BOOLS = ["shrink_enabled", "joker_skip", "joker_double", "joker_decoy", "show_teammates"];
+var BOOLS = ["shrink_enabled", "show_teammates"];
 function normalizeSettings(input = {}) {
   const s = { ...DEFAULT_SETTINGS };
   for (const [k, [min, max]] of Object.entries(SETTING_LIMITS)) {
@@ -193,6 +197,17 @@ function normalizeSettings(input = {}) {
   for (const k of BOOLS) if (typeof input?.[k] === "boolean") s[k] = input[k];
   return s;
 }
+var HIDER_JOKERS = {
+  skip: { label: "Ping \xFCberspringen", sub: "Der n\xE4chste Ping f\xE4llt aus.", icon: "skip", pending: true },
+  double: { label: "Ungenauer Ping", sub: "Der n\xE4chste Ping ist stark verrauscht: auf 100 m gerundet und bis zu 150 m daneben.", icon: "double", pending: true },
+  decoy: { label: "Falsche Entfernung", sub: "Der n\xE4chste Ping misst zu einem erfundenen Ort, 300 bis 900 m von dir entfernt. Wird erst nach dem Spiel verraten.", icon: "ghost", pending: true },
+  reveal: { label: "Sucher-Radar", sub: "Zeigt dir sofort, wo alle Sucher gerade genau sind.", icon: "target", pending: false }
+};
+var HUNTER_JOKERS = {
+  sound: { label: "Sound-Joker", sub: "Spielt bei einem Gejagten einen Ton ab und zeigt dir seinen genauen Standort.", icon: "megaphone", pending: false }
+};
+var JOKERS = { ...HIDER_JOKERS, ...HUNTER_JOKERS };
+var PENDING_JOKERS = Object.keys(HIDER_JOKERS).filter((k) => HIDER_JOKERS[k].pending);
 function zoneIndexAt(game, now) {
   const stages = game.zone_stages;
   if (!Array.isArray(stages) || stages.length < 2 || !game.hunt_starts_at || now < game.hunt_starts_at) return 0;
@@ -230,11 +245,27 @@ function pingRowsFor(ctx, hider, seq, kind, now, rng, joker, zoneGeom) {
   let target = truePos;
   let decoy = false;
   if (joker === "decoy" && kind === "regular" && zoneGeom) {
-    target = randomPointInGeometry(zoneGeom, rng, truePos, 300, 900);
+    const refs = s.ping_mode === "distance" ? ctx.players.filter((p) => p.role === "hunter" && p.status === "active").map((p) => ctx.privs[p.id]).filter((hv) => hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS).map((hv) => ({ lat: hv.kf_lat, lon: hv.kf_lon })) : [];
+    for (let i = 0; i < 30; i++) {
+      target = randomPointInGeometry(zoneGeom, rng, truePos, 300, 900);
+      if (refs.every((r) => Math.abs(distanceM(r, target) - distanceM(r, truePos)) >= 150)) break;
+    }
     decoy = true;
   }
   const double = joker === "double" && kind === "regular";
   const extra = { ...base, age_s, decoy, joker: double ? "double" : null };
+  if (s.ping_mode === "distance") {
+    const rows = [{ ...extra, mode: "distance", distance_m: null }];
+    for (const hunter of ctx.players.filter((p) => p.role === "hunter" && p.status === "active")) {
+      const hv = ctx.privs[hunter.id];
+      if (hv && Number.isFinite(hv.kf_lat) && hv.kf_at > now - FRESH_REF_MS) {
+        rows.push({ ...extra, recipient_id: hunter.id, ...buildPing("distance", target, { ref: { lat: hv.kf_lat, lon: hv.kf_lon }, double }, rng) });
+      } else {
+        rows.push({ ...base, recipient_id: hunter.id, mode: "none", no_signal: true });
+      }
+    }
+    return rows;
+  }
   if (s.ping_mode === "direction") {
     return hunterRefs(ctx, now, zoneGeom).map(({ hunter, ref, refIsCenter }) => ({
       ...extra,
@@ -314,7 +345,7 @@ function planTick(ctx, now, rng = Math.random) {
     for (const h of hiders) {
       if (eliminated.has(h.id)) continue;
       const pending = ctx.privs[h.id]?.joker_pending;
-      const joker = pending && s[`joker_${pending}`] ? pending : null;
+      const joker = PENDING_JOKERS.includes(pending) ? pending : null;
       if (pending) plan.consumed_jokers.push(h.id);
       plan.pings.push(...pingRowsFor(ctx, h, seq, "regular", now, rng, joker, zoneGeom));
     }

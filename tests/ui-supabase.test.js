@@ -103,9 +103,10 @@ test('Zwei Spieler: Lobby, Start, Standort, Ping, Chat, Gefunden, Ergebnis', { s
   let pings = [];
   for (let i = 0; i < 30 && !pings.length; i++) {
     await host.waitForTimeout(1000);
-    pings = await db.admin("select p.mode, p.seq from public.pings p join public.players h on h.id = p.hider_id where h.name = 'Mia' and p.seq > $1 order by p.id desc limit 1", [seq]);
+    pings = await db.admin("select p.mode, p.seq, p.lat, p.distance_m from public.pings p join public.players h on h.id = p.hider_id where h.name = 'Mia' and p.recipient_id is not null and p.seq > $1 order by p.id desc limit 1", [seq]);
   }
-  assert.equal(pings[0]?.mode, 'distance', 'neuer Ping zeigt nur die Entfernung');
+  assert.equal(pings[0]?.mode, 'distance', 'neuer Ping enthält die Entfernung');
+  assert.ok(pings[0]?.lat != null, 'neuer Ping enthält auch den genauen Punkt');
   await host.waitForSelector(`.hrow:has-text("#${pings[0].seq}")`, { timeout: 15_000 });
   await host.waitForTimeout(800);
   await host.shot('ping');

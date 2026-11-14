@@ -211,6 +211,22 @@ test('Richtungs-Pings sieht nur der jeweilige Sucher', async () => {
   assert.equal(forMia.length, 0, 'Richtungs-Pings verraten die Sucher-Position, Gejagte sehen sie nicht');
 });
 
+test('Standard-Ping mit genauem Punkt: nur der Empfänger-Sucher sieht ihn, Gejagte und andere Sucher nicht', async () => {
+  const row = (recipient, extra) => ({
+    seq: 2, hider_id: P.mia, recipient_id: recipient, kind: 'regular', mode: 'distance', age_s: 3, ...extra,
+  });
+  await db.rpc(SERVICE, 'svc_insert_ping', { p_game: G, r: row(P.eric, { lat: 52.5201, lon: 13.4051, ref_lat: LAT, ref_lon: LON, distance_m: 412 }) });
+  await db.rpc(SERVICE, 'svc_insert_ping', { p_game: G, r: row(P.ben, { lat: 52.5201, lon: 13.4051, ref_lat: LAT + 0.002, ref_lon: LON, distance_m: 250 }) });
+  await db.rpc(SERVICE, 'svc_insert_ping', { p_game: G, r: row(null, {}) });
+  const forEric = await db.select(U.eric, "select recipient_id, lat, lon, distance_m from public.pings where game_id = $1 and mode = 'distance' and distance_m is not null", [G]);
+  assert.deepEqual(forEric.map((p) => [p.recipient_id, p.distance_m]), [[P.eric, 412]], 'Eric sieht nur seine eigene Zeile');
+  assert.equal(forEric[0].lat, 52.5201);
+  assert.equal(forEric[0].lon, 13.4051);
+  const forMia = await db.select(U.mia, "select lat, lon, distance_m, recipient_id from public.pings where game_id = $1 and mode = 'distance'", [G]);
+  assert.deepEqual(forMia.map((p) => [p.recipient_id, p.lat, p.distance_m]), [[null, null, null]], 'Mia sieht nur die Meldung ohne Ort und Entfernung');
+  await db.admin("delete from public.pings where game_id = $1 and mode = 'distance'", [G]);
+});
+
 test('Grenze: Strafe nur nach Ablauf des Countdowns, Ausscheiden beendet ggf. das Spiel', async () => {
   await storeLoc(P.lena, LAT + 0.05, LON, {
     boundary: { inside: false, edge_dist_m: -4000, violation: 'outside' },

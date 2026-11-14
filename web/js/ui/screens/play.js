@@ -4,7 +4,7 @@ import { icon, ringSvg } from '../../util/icons.js';
 import { mmss, ago, meters, minutes, ts } from '../../util/format.js';
 import { normalizeSettings, zoneIndexAt, zoneGeometryAt, HIDER_JOKERS, HUNTER_JOKERS, jokerUsed, startRole } from '../../core/engine.js';
 import { boundaryStatus, bandSector, destination } from '../../core/geo.js';
-import { directionText, distanceText, isNotice } from '../../core/ping.js';
+import { directionText, distanceText, hasPoint, isNotice } from '../../core/ping.js';
 import { playAlarm } from '../../util/sound.js';
 import { createMap, outsideMask, polygonLayer, dotMarker, labelMarker, fitGeometry } from '../map.js';
 import { holdButton, signalEl, avatar, ROLE, demoBanner } from '../components.js';
@@ -181,7 +181,7 @@ export function playScreen(ctx) {
     if (p.kind === 'joker_skip') return 'übersprungen (Joker)';
     if (p.kind === 'joker_sound') return 'Sound-Joker: genauer Standort';
     if (p.no_signal || p.mode === 'none') return p.recipient_id ? 'dein Standort fehlte' : 'kein Signal';
-    let t = p.mode === 'distance' ? distanceText(p) : p.mode === 'exact' ? 'exakter Punkt' : p.mode === 'circle' ? `Kreis ~${Math.round(p.radius_m)} m` : directionText(p);
+    let t = p.mode === 'distance' ? (hasPoint(p) ? `${p.radius_m > 0 ? `Kreis ~${Math.round(p.radius_m)} m` : 'exakter Punkt'} · ${distanceText(p)}` : distanceText(p)) : p.mode === 'exact' ? 'exakter Punkt' : p.mode === 'circle' ? `Kreis ~${Math.round(p.radius_m)} m` : directionText(p);
     if (p.joker === 'double') t += ' (Joker)';
     if (p.ref_is_center) t += ' vom Mittelpunkt';
     if (p.age_s > 120) t += ` · Position ${minutes(p.age_s)} alt`;
@@ -237,8 +237,14 @@ export function playScreen(ctx) {
         const cls = ['lf-ping', latest ? (age < 90_000 ? 'pulse' : '') : 'old', own ? 'own' : '', decoys.has(p.id) && (own || ended) ? 'decoy' : ''].join(' ');
         const sound = p.kind === 'joker_sound';
         const label = sound ? `🔊 ${own ? 'du' : nameOf(hid)}` : `#${p.seq}${p.kind === 'penalty' ? '+' : ''} ${own ? 'du' : nameOf(hid)}${decoys.has(p.id) && (own || ended) ? ' (Täuschung)' : ''}`;
-        if (p.mode === 'distance') {
-          // Nur die Entfernung ist bekannt: Ring um die Position des Suchers beim Ping
+        if (p.mode === 'distance' && hasPoint(p)) {
+          // Genauer Punkt (beim ungenauen Ping ein Kreis) plus Entfernung von der eigenen Position
+          const circle = p.radius_m > 0;
+          if (circle) L.circle([p.lat, p.lon], { radius: p.radius_m, className: cls, interactive: false }).addTo(pingG);
+          else dotMarker(p, 'hider', latest ? '' : 'stale').addTo(pingG);
+          if (latest || me.role === 'hunter') labelMarker(p, `${label}: ${distanceText(p)}`, latest ? 'hid' : 'mut', circle ? 0 : -24).addTo(pingG);
+        } else if (p.mode === 'distance') {
+          // Älterer Ping ohne Ort (bis Version 0.3.1): nur die Entfernung ist bekannt, also ein Ring um die Position des Suchers
           const ref = { lat: p.ref_lat, lon: p.ref_lon };
           L.circle([ref.lat, ref.lon], { radius: Math.max(2, p.distance_m), className: `lf-dist${latest ? (age < 90_000 ? ' pulse' : '') : ' old'}${decoys.has(p.id) && ended ? ' decoy' : ''}`, interactive: false }).addTo(pingG);
           labelMarker(destination(ref, Math.max(2, p.distance_m), 0), `${label}: ${distanceText(p)}`, latest ? 'ac' : 'mut').addTo(pingG);
@@ -458,7 +464,7 @@ export function playScreen(ctx) {
           class: `hrow${i === 0 && ctx.now() - ts(p.created_at) < 90_000 ? ' now' : ''}`,
           onclick: () => {
             if (p.mode === 'circle' || p.mode === 'exact') map.setView([p.lat, p.lon], Math.max(map.getZoom(), 16));
-            else if (p.mode === 'distance') map.setView([p.ref_lat, p.ref_lon], 16);
+            else if (p.mode === 'distance') map.setView(hasPoint(p) ? [p.lat, p.lon] : [p.ref_lat, p.ref_lon], 16);
             else if (p.mode === 'direction') map.setView([p.ref_lat, p.ref_lon], 15);
           },
         }, h('span', { class: 'hn' }, p.kind === 'joker_sound' ? '🔊' : `#${p.seq}`), h('b', {}, nameOf(p.hider_id)), h('small', {}, `${p.kind === 'penalty' ? 'Extra-Ping · ' : ''}${pingText(p)} · ${ago(ctx.now() - ts(p.created_at))}`)))) : h('p', { class: 'sub' }, 'Noch keine Pings.'));

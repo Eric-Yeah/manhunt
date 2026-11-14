@@ -610,7 +610,7 @@ export class DemoBackend extends BaseBackend {
         const latest = [...w.pings].reverse().find((x) => x.mode !== 'none' && !(x.mode === 'distance' && !x.recipient_id) && (!x.recipient_id || x.recipient_id === p.id) && w.players.find((h) => h.id === x.hider_id)?.status === 'active');
         if (latest && latest.id !== b.pingId) {
           b.pingId = latest.id;
-          if (latest.mode === 'distance') {
+          if (latest.mode === 'distance' && latest.lat == null) {
             // Nur die Entfernung bekannt: grob in Richtung des Gejagten loslaufen (Demo-Bots dürfen schummeln)
             const hp = w.bots[latest.hider_id]?.pos || (w.players.find((h) => h.id === latest.hider_id)?.user_id === ME ? mePos : null);
             const bearing = hp ? bearingDeg({ lat: latest.ref_lat, lon: latest.ref_lon }, hp) + (Math.random() - 0.5) * 70 : Math.random() * 360;

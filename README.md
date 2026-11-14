@@ -152,7 +152,7 @@ Am besten mit zwei Handys im Garten oder Park:
 2. Handy B: Code eingeben oder QR scannen → beitreten.
 3. Im Warteraum: Steht bei beiden „Traccar · aktiv“? Wenn nicht: Traccar-Ortung an? Kennung/URL richtig? (Der Hilfe-Screen zeigt live „Signal kommt an“.)
 4. Rollen wählen (A Sucher, B Gejagter) → Starten.
-5. Nach ca. 1 Minute: Handy A zeigt den ersten Ping (Ring mit der Entfernung in Metern), Handy B bekommt „Die Sucher haben dich gerade geortet“.
+5. Nach ca. 1 Minute: Handy A zeigt den ersten Ping (genauer Punkt mit der Entfernung in Metern), Handy B bekommt „Die Sucher haben dich gerade geortet“.
 6. Handy B sperren und 100 m laufen → nächster Ping auf A sollte sich bewegen (das ist Traccar im Hintergrund).
 7. B läuft aus dem Gebiet → nach Warnzeit Extra-Ping auf A.
 8. SOS testen, Chat testen (Team und Alle), „Ich wurde gefunden“ → Ergebnis mit Wiederholung.
@@ -168,10 +168,10 @@ Wenn Pings ausbleiben: Dashboard → **Edge Functions → tick → Logs** und im
 |---|---|
 | **Warteraum** | Code/QR teilen, Rollen wählen (oder Host verteilt/lost), „Bereit“, Tracker-Status je Spieler, Hinweis „Wer sieht was?“ |
 | **Vorsprung** | Gejagte verstecken sich. Kein Ping. |
-| **Jagd** | Alle *X* Minuten erzeugt der Server pro Gejagtem einen Ping: Jeder Sucher bekommt nur die **Entfernung in Metern** von seiner eigenen Position zum Gejagten, keine Richtung und keinen Punkt. (Die älteren Modi Punkt, Kreis und Richtung gibt es nur noch für alte Spiele.) |
+| **Jagd** | Alle *X* Minuten erzeugt der Server pro Gejagtem einen Ping: Jeder Sucher bekommt den **genauen Punkt** des Gejagten und die **Entfernung in Metern** von seiner eigenen Position dorthin. Zwischen den Pings bleibt der Standort geheim. (Die älteren Modi Punkt, Kreis und Richtung gibt es nur noch für alte Spiele.) |
 | **Grenze** | Server prüft jede Position (Toleranz 20 m + GPS-Ungenauigkeit). Außerhalb oder in einer Sperrzone: Warnung mit Countdown, danach Extra-Ping oder Ausscheiden. |
 | **Zone** | Optional schrumpfend; die nächste Stufe erscheint 2 Minuten vorher gestrichelt. |
-| **Joker** | Immer an, jeder Joker einmal pro Runde und Spieler. Gejagte: Ping überspringen, Ungenauer Ping (auf 100 m gerundet, bis 150 m daneben), Falsche Entfernung (misst zu einem erfundenen Ort, wird erst nach Spielende verraten), Sucher-Radar (zeigt sofort, wo alle Sucher genau sind). Sucher: Sound-Joker (spielt `web/sounds/joker.mp3` beim gewählten Gejagten ab und zeigt allen Suchern dessen genauen Standort). Ton kommt nur an, wenn die App beim Gejagten offen ist. |
+| **Joker** | Immer an, jeder Joker einmal pro Runde und Spieler. Gejagte: Ping überspringen, Ungenauer Ping (nur ein 150-m-Kreis statt des Punkts, Entfernung auf 100 m gerundet), Falscher Ort (der Ping zeigt einen erfundenen Ort, wird erst nach Spielende verraten), Sucher-Radar (zeigt sofort, wo alle Sucher genau sind). Sucher: Sound-Joker (spielt `web/sounds/joker.mp3` beim gewählten Gejagten ab und zeigt allen Suchern dessen genauen Standort). Ton kommt nur an, wenn die App beim Gejagten offen ist. |
 | **Gefunden** | Wer gefunden wurde, gibt keinen Standort mehr weiter (der Server speichert ihn nicht mehr) und kann als Sucher mitjagen. |
 | **Wiederholung** | Nach dem Spiel speichert jedes Handy die Wiederholung bei sich (Startseite → „Gespeicherte Wiederholungen“, die letzten 8). Sie bleibt, auch wenn der Server das Spiel nach der Aufbewahrungszeit löscht. |
 | **Ende** | Alle Gejagten gefunden/raus → Sucher gewinnen. Zeit abgelaufen → Gejagte gewinnen. Ergebnis mit Routen-Wiederholung, Revanche mit getauschten Rollen. |
@@ -185,7 +185,7 @@ Pause/SOS stoppt das Spiel für alle (Countdowns, Pings, Strafen) und erscheint 
 **Das Wichtigste: Echte Standorte der Gejagten erreichen die Sucher nie.**
 
 - `locations` (echte Positionen) und `player_private` (geglättete Position, Grenzstatus, Joker) sind per RLS nur für den Spieler selbst lesbar (eigene Teammitglieder sehen sich gegenseitig, abschaltbar). Das andere Team sieht sie nie.
-- Sucher lesen nur `pings` – vom Server bereits verfremdet. Entfernungs-Pings sieht nur der Sucher, für den sie berechnet wurden; Gejagte sehen sie nicht (sie würden die Sucher-Position verraten). Sucher-Radar und Sound-Ton liegen in `joker_events`, das nur der betroffene Gejagte lesen kann. Der Täuschungs-Joker steht in `ping_secrets`, das erst nach Spielende sichtbar wird.
+- Sucher lesen nur `pings` – vom Server bereits verfremdet. Pings mit Entfernung sieht nur der Sucher, für den sie berechnet wurden; Gejagte sehen sie nicht (sie würden die Sucher-Position verraten). Die Pings sind der gewollte Weg, auf dem Suchern der genaue Punkt eines Gejagten bekannt wird. Sucher-Radar und Sound-Ton liegen in `joker_events`, das nur der betroffene Gejagte lesen kann. Der Täuschungs-Joker steht in `ping_secrets`, das erst nach Spielende sichtbar wird.
 - Apps dürfen **keine Tabelle direkt ändern**. Jede Änderung läuft über geprüfte Datenbank-Funktionen. Server-Funktionen (`svc_…`) kann nur die Edge Function mit Secret Key aufrufen.
 - Chat: Kanäle `hunters`, `hiders`, `all`, Zugriff per RLS (nicht nur in der App ausgeblendet). Wer im Warteraum die Seite wechselt, verliert sofort den Zugang zum alten Team-Chat. Nach Spielende lesen alle alles.
 - Tracker-Token: 64 Hex-Zeichen (≈ 244 Bit Zufall, nicht erratbar), nur für den Besitzer lesbar, neu erzeugbar. Rate-Limit 1 Meldung/Sekunde, Prüfung von Koordinaten, Zeitstempel (max. 5 min alt) und Genauigkeit (Standard 50 m), Kalman-Filter gegen GPS-Ausreißer.
